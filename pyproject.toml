@@ -1,0 +1,54 @@
+[project]
+name = "kohonen"
+version = "0.1.0"
+description = "A vectorised, tested Kohonen Self-Organising Map."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "hypothesis>=6.100",
+  "ruff>=0.6",
+  "mypy>=1.11",
+]
+bench = ["minisom>=2.3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kohonen"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=kohonen --cov-report=term-missing --cov-fail-under=95"
+
+[tool.coverage.run]
+source = ["kohonen"]
+# The oracle is a frozen copy of the original implementation, not maintained
+# code. Holding it to the coverage gate would be meaningless.
+omit = ["*/_reference.py"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+# notebooks/ is preserved evidence, not maintained code -- linting or
+# reformatting it would destroy the very thing the review argues about.
+# docs/ holds prose whose fenced code blocks are illustrative, not compiled.
+extend-exclude = ["notebooks", "docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = ["minisom.*", "somoclu.*"]
+ignore_missing_imports = true
