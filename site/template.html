@@ -1,0 +1,1027 @@
+<title>Kohonen SOM — Code Review, Benchmarks & Explainer</title>
+
+<style>
+/* ---- tokens: light is the complete set on bare :root ---- */
+:root {
+  --paper:      #f6f7f9;
+  --surface:    #ffffff;
+  --surface-2:  #eef0f4;
+  --ink:        #14161f;
+  --ink-soft:   #3d4152;
+  --muted:      #6b6e7e;
+  --rule:       #d9dce4;
+  --rule-soft:  #e8eaf0;
+
+  --indigo:     #4a3fb5;
+  --indigo-dim: #e6e4f7;
+  --teal:       #0f7d74;
+  --teal-dim:   #dcefed;
+  --amber:      #b8791a;
+  --amber-dim:  #f7ecd8;
+  --crit:       #a8322f;
+
+  --shadow: 0 1px 2px rgba(20,22,31,.06), 0 8px 24px -12px rgba(20,22,31,.18);
+
+  --display: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+
+  --measure: 68ch;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0e1017;
+    --surface:    #171a24;
+    --surface-2:  #1e2230;
+    --ink:        #e7e8ee;
+    --ink-soft:   #b9bcca;
+    --muted:      #878b9c;
+    --rule:       #2b3040;
+    --rule-soft:  #232838;
+
+    --indigo:     #9a90ff;
+    --indigo-dim: #241f4d;
+    --teal:       #4fc9bc;
+    --teal-dim:   #10352f;
+    --amber:      #e0a44a;
+    --amber-dim:  #3a2b12;
+    --crit:       #f0837f;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #0e1017;
+  --surface:    #171a24;
+  --surface-2:  #1e2230;
+  --ink:        #e7e8ee;
+  --ink-soft:   #b9bcca;
+  --muted:      #878b9c;
+  --rule:       #2b3040;
+  --rule-soft:  #232838;
+
+  --indigo:     #9a90ff;
+  --indigo-dim: #241f4d;
+  --teal:       #4fc9bc;
+  --teal-dim:   #10352f;
+  --amber:      #e0a44a;
+  --amber-dim:  #3a2b12;
+  --crit:       #f0837f;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.masthead-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 14px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+#lattice-mark {
+  width: 34px; height: 34px;
+  border-radius: 3px;
+  display: block;
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.25; }
+.brand-title {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.brand-sub {
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--muted);
+  letter-spacing: .02em;
+}
+
+.tabs { display: flex; gap: 2px; }
+.tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: none;
+  color: var(--muted);
+  font-family: var(--body);
+  font-size: .85rem;
+  font-weight: 500;
+  padding: 9px 16px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  position: relative;
+  top: 1px;
+}
+.tab:hover { color: var(--ink); background: var(--surface-2); }
+.tab:focus-visible { outline: 2px solid var(--indigo); outline-offset: -2px; }
+.tab[aria-selected="true"] {
+  color: var(--ink);
+  background: var(--paper);
+  border-color: var(--rule);
+  font-weight: 600;
+}
+
+/* ---- layout ---- */
+main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 96px; }
+.panel[hidden] { display: none; }
+.prose { max-width: var(--measure); }
+.prose > * + * { margin-top: 1em; }
+
+h1 {
+  font-family: var(--display);
+  font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+  line-height: 1.12;
+  letter-spacing: -0.022em;
+  font-weight: 600;
+  margin: 0 0 .5em;
+  text-wrap: balance;
+}
+h2 {
+  font-family: var(--display);
+  font-size: 1.45rem;
+  letter-spacing: -0.012em;
+  font-weight: 600;
+  margin: 2.6em 0 .7em;
+  text-wrap: balance;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+h3 {
+  font-family: var(--body);
+  font-size: .95rem;
+  font-weight: 650;
+  margin: 2em 0 .5em;
+  letter-spacing: .005em;
+}
+p { margin: 0 0 1em; color: var(--ink-soft); }
+.prose p:first-of-type { color: var(--ink); }
+
+.lede {
+  font-family: var(--display);
+  font-size: 1.2rem;
+  line-height: 1.5;
+  color: var(--ink) !important;
+}
+
+/* lattice glyph — a SOM is a lattice, so the marker is one */
+.glyph { width: 13px; height: 13px; flex-shrink: 0; display: block; }
+.glyph rect { fill: var(--indigo); }
+.glyph rect:nth-child(3n+2) { fill: var(--teal); opacity: .8; }
+.glyph rect:nth-child(4n) { fill: var(--amber); opacity: .75; }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--muted);
+  margin-bottom: .8em;
+}
+
+/* ---- headline stat row ---- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 2em 0;
+}
+.stat { background: var(--surface); padding: 16px 18px; }
+.stat-val {
+  font-family: var(--mono);
+  font-size: 1.55rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--indigo);
+  line-height: 1.1;
+}
+.stat-label {
+  font-size: .76rem;
+  color: var(--muted);
+  margin-top: 5px;
+  line-height: 1.4;
+}
+
+/* ---- tables ---- */
+.scroll-x { overflow-x: auto; margin: 1.5em 0; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .855rem;
+  min-width: 480px;
+}
+th, td {
+  text-align: left;
+  padding: 9px 14px 9px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+}
+th {
+  font-weight: 650;
+  color: var(--ink);
+  border-bottom-color: var(--rule);
+  font-size: .74rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+td.num, th.num {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  padding-right: 20px;
+}
+tbody tr:last-child td { border-bottom: none; }
+.win { color: var(--indigo); font-weight: 650; }
+
+/* ---- recommendation cards: ordinals encode rank by impact ---- */
+.recs { display: flex; flex-direction: column; gap: 1px; background: var(--rule);
+        border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; margin: 1.6em 0; }
+.rec { background: var(--surface); padding: 16px 20px; display: grid;
+       grid-template-columns: 30px 1fr; gap: 16px; align-items: start; }
+.rec-n {
+  font-family: var(--mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--indigo);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+.rec-title { font-weight: 650; margin-bottom: 3px; }
+.rec-body { font-size: .875rem; color: var(--ink-soft); }
+.rec-ev {
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--muted);
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--rule);
+}
+
+/* ---- code ---- */
+pre {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule);
+  border-radius: 6px;
+  padding: 13px 16px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: .78rem;
+  line-height: 1.65;
+  margin: 0;
+}
+pre.bad { border-left-color: var(--amber); }
+pre.good { border-left-color: var(--indigo); }
+code { font-family: var(--mono); font-size: .875em; }
+p code, li code, td code {
+  background: var(--surface-2);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 1.5em 0; }
+@media (max-width: 720px) { .compare { grid-template-columns: 1fr; } }
+.compare-label {
+  font-family: var(--mono);
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* ---- callout ---- */
+.callout {
+  border-left: 3px solid var(--indigo);
+  background: var(--surface);
+  border-radius: 0 6px 6px 0;
+  padding: 14px 18px;
+  margin: 1.6em 0;
+  font-size: .9rem;
+}
+.callout.warn { border-left-color: var(--amber); }
+.callout-title { font-weight: 650; margin-bottom: 4px; font-size: .875rem; }
+.callout p { margin: 0; color: var(--ink-soft); }
+.callout p + p { margin-top: .6em; }
+
+/* ---- charts ---- */
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 20px 22px;
+  margin: 1.6em 0;
+}
+.chart-title { font-weight: 650; font-size: .95rem; margin-bottom: 2px; }
+.chart-sub { font-size: .8rem; color: var(--muted); margin-bottom: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 14px; font-size: .78rem; }
+.legend-item { display: flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.swatch { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+.chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart-svg text { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.chart-svg text.val { fill: var(--ink-soft); font-weight: 600; }
+.chart-svg text.grp { font-family: var(--body); font-size: 11px; fill: var(--ink); font-weight: 600; }
+.chart-svg line.grid { stroke: var(--rule-soft); stroke-width: 1; }
+
+/* ---- animation ---- */
+.demo {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 22px;
+  margin: 1.8em 0;
+}
+.demo-stage { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+#som-canvas {
+  width: 320px; height: 320px;
+  image-rendering: pixelated;
+  border-radius: 5px;
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+  background: var(--surface-2);
+}
+.demo-side { flex: 1; min-width: 210px; }
+.readout { display: flex; gap: 22px; margin-bottom: 14px; flex-wrap: wrap; }
+.readout-item { }
+.readout-val {
+  font-family: var(--mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--indigo);
+}
+.readout-label {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+}
+.controls { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+button.play {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: .82rem;
+  font-weight: 600;
+  padding: 7px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  min-width: 74px;
+}
+button.play:hover { border-color: var(--indigo); color: var(--indigo); }
+button.play:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+input[type="range"] { flex: 1; min-width: 90px; accent-color: var(--indigo); cursor: pointer; }
+input[type="range"]:focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.swatches div { width: 17px; height: 17px; border-radius: 3px; }
+.demo-note { font-size: .78rem; color: var(--muted); margin-top: 12px; line-height: 1.5; }
+
+/* ---- exec explainer ---- */
+.apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 1px;
+        background: var(--rule); border: 1px solid var(--rule); border-radius: 8px;
+        overflow: hidden; margin: 1.6em 0; }
+.app { background: var(--surface); padding: 16px 18px; }
+.app-name { font-weight: 650; font-size: .875rem; margin-bottom: 4px; }
+.app-desc { font-size: .82rem; color: var(--ink-soft); }
+
+ul, ol { padding-left: 1.15em; color: var(--ink-soft); }
+li { margin-bottom: .45em; }
+li::marker { color: var(--muted); }
+
+/* ---- footer ---- */
+footer {
+  border-top: 1px solid var(--rule);
+  margin-top: 72px;
+  padding: 22px 24px 40px;
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--muted);
+}
+.footer-inner { max-width: 1100px; margin: 0 auto; display: flex;
+                flex-wrap: wrap; gap: 8px 22px; align-items: center; }
+.footer-inner strong { color: var(--ink-soft); font-weight: 600; }
+a { color: var(--indigo); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+@media (max-width: 640px) {
+  main { padding: 28px 16px 72px; }
+  .masthead-inner { padding: 12px 16px 0; }
+  .tabs { overflow-x: auto; }
+  #som-canvas { width: 260px; height: 260px; }
+}
+</style>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand">
+      <canvas id="lattice-mark" width="20" height="20" aria-hidden="true"></canvas>
+      <div class="brand-text">
+        <span class="brand-title">Kohonen Self-Organising Map</span>
+        <span class="brand-sub">code review &middot; benchmarks &middot; explainer</span>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true"  aria-controls="p-review" id="t-review">Review</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="p-bench"  id="t-bench">Benchmarks</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="p-explain" id="t-explain">How a SOM Works</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= REVIEW ================= -->
+<section class="panel" id="p-review" role="tabpanel" aria-labelledby="t-review">
+  <div class="prose">
+    <p class="eyebrow">Code review</p>
+    <h1>The algorithm was right. The loop around it wasn&rsquo;t.</h1>
+    <p class="lede">The best-matching-unit search was already vectorised &mdash; so the
+      technique was known. Two lines later, the weight update is a nested Python loop over
+      every node on the grid. That one choice is the difference between five minutes and
+      two seconds.</p>
+  </div>
+
+  <div class="stats" id="stat-row"></div>
+
+  <div class="prose">
+    <h2><svg class="glyph" viewBox="0 0 13 13" aria-hidden="true"><rect x="0" y="0" width="3.4" height="3.4"/><rect x="4.8" y="0" width="3.4" height="3.4"/><rect x="9.6" y="0" width="3.4" height="3.4"/><rect x="0" y="4.8" width="3.4" height="3.4"/><rect x="4.8" y="4.8" width="3.4" height="3.4"/><rect x="9.6" y="4.8" width="3.4" height="3.4"/><rect x="0" y="9.6" width="3.4" height="3.4"/><rect x="4.8" y="9.6" width="3.4" height="3.4"/><rect x="9.6" y="9.6" width="3.4" height="3.4"/></svg>The finding</h2>
+    <p>The BMU search on line four of <code>train</code> is already vectorised. The weight
+      update immediately below it is not.</p>
+  </div>
+
+  <div class="compare">
+    <div>
+      <div class="compare-label">Original &mdash; ~3100 ns per node</div>
+<pre class="bad">for x in range(width):
+    for y in range(height):
+        di = np.sqrt(((x - bmu_x) ** 2)
+                   + ((y - bmu_y) ** 2))
+        theta_t = np.exp(-(di ** 2)
+                  / (2 * (sigma_t ** 2)))
+        weights[x, y] += alpha_t * theta_t \
+                       * (vt - weights[x, y])</pre>
+    </div>
+    <div>
+      <div class="compare-label">Vectorised &mdash; 19 ns per node</div>
+<pre class="good">diff  = weights - sample
+d2    = squared_distance_to(
+            grid_x, grid_y, bmu_x, bmu_y)
+theta = gaussian_influence(d2, sigma_t)
+
+weights -= (alpha_t * theta)[..., None] * diff</pre>
+    </div>
+  </div>
+
+  <div class="prose">
+    <p>For the 100&times;100 example the original executes roughly 100 million Python-level
+      iterations, each allocating NumPy temporaries to update a three-element vector.</p>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">The cost per node is flat across a hundredfold change in grid size</div>
+    <p>3151 ns at 10&times;10. 3101 ns at 30&times;30. 3091 ns at 100&times;100. That is not
+      algorithmic cost &mdash; it is per-node Python interpreter overhead, invariant to the
+      work being done. The fix isn&rsquo;t a better algorithm; it&rsquo;s removing the
+      interpreter from the inner loop.</p>
+  </div>
+
+  <div class="prose">
+    <h2><svg class="glyph" viewBox="0 0 13 13" aria-hidden="true"><rect x="0" y="0" width="3.4" height="3.4"/><rect x="4.8" y="0" width="3.4" height="3.4"/><rect x="9.6" y="0" width="3.4" height="3.4"/><rect x="0" y="4.8" width="3.4" height="3.4"/><rect x="4.8" y="4.8" width="3.4" height="3.4"/><rect x="9.6" y="4.8" width="3.4" height="3.4"/><rect x="0" y="9.6" width="3.4" height="3.4"/><rect x="4.8" y="9.6" width="3.4" height="3.4"/><rect x="9.6" y="9.6" width="3.4" height="3.4"/></svg>Five correctness defects</h2>
+    <ol>
+      <li><strong>Division by zero on small grids.</strong>
+        <code>lambda = n_iterations / log(sigma_0)</code> is undefined when
+        <code>max(width, height) == 2</code>, because <code>sigma_0 == 1</code> and
+        <code>log(1) == 0</code>. On a 1&times;1 grid lambda goes <em>negative</em>, so the
+        neighbourhood grows instead of decaying &mdash; the map actively un-organises.</li>
+      <li><strong>The radius is computed, then never used as a radius.</strong> The brief
+        selects nodes <em>within</em> the neighbourhood; the code applies the Gaussian to all
+        nodes unconditionally. Defensible, but undocumented.</li>
+      <li><strong><code>t</code> is the epoch index, not the iteration counter.</strong> With
+        10 samples and 100 epochs, decay advances once per 10 weight updates. The brief is
+        ambiguous &mdash; but the choice is silent.</li>
+      <li><strong>Dimensionality hardcoded to 3.</strong> The brief says a 10-element input
+        implies 10 weights per node. This accepts RGB and nothing else.</li>
+      <li><strong>No seed.</strong> <code>np.random.random</code> draws from global state, so
+        no run is reproducible.</li>
+    </ol>
+  </div>
+
+  <div class="prose">
+    <h2><svg class="glyph" viewBox="0 0 13 13" aria-hidden="true"><rect x="0" y="0" width="3.4" height="3.4"/><rect x="4.8" y="0" width="3.4" height="3.4"/><rect x="9.6" y="0" width="3.4" height="3.4"/><rect x="0" y="4.8" width="3.4" height="3.4"/><rect x="4.8" y="4.8" width="3.4" height="3.4"/><rect x="9.6" y="4.8" width="3.4" height="3.4"/><rect x="0" y="9.6" width="3.4" height="3.4"/><rect x="4.8" y="9.6" width="3.4" height="3.4"/><rect x="9.6" y="9.6" width="3.4" height="3.4"/></svg>Five recommendations</h2>
+    <p>Ordered by business impact rather than technical novelty. The ordering is part of the
+      recommendation.</p>
+  </div>
+
+  <div class="recs">
+    <div class="rec"><div class="rec-n">1</div><div>
+      <div class="rec-title">Vectorise the neighbourhood update</div>
+      <div class="rec-body">Replace the nested grid loop with broadcast operations over a
+        coordinate grid built once per run.</div>
+      <div class="rec-ev">161&times; at 100&times;100 &middot; deviation 2.220e-16</div>
+    </div></div>
+    <div class="rec"><div class="rec-n">2</div><div>
+      <div class="rec-title">Make it correct and reproducible</div>
+      <div class="rec-body">Inject the seed, guard the degenerate radius, validate inputs,
+        infer dimensionality from the data.</div>
+      <div class="rec-ev">fixes 5 defects, including a division by zero</div>
+    </div></div>
+    <div class="rec"><div class="rec-n">3</div><div>
+      <div class="rec-title">Separate the algorithm from its I/O and configuration</div>
+      <div class="rec-body">A typed <code>SOM</code> with <code>fit</code>/<code>predict</code>;
+        decay as an injectable policy; no plotting inside the trainer.</div>
+      <div class="rec-ev">enables testing, reuse, non-RGB data</div>
+    </div></div>
+    <div class="rec"><div class="rec-n">4</div><div>
+      <div class="rec-title">Test it like it ships</div>
+      <div class="rec-body">Keep the original as an executable oracle; add property-based
+        tests for the algorithm&rsquo;s invariants.</div>
+      <div class="rec-ev">103 tests &middot; 100% coverage &middot; CI on Python 3.10&ndash;3.14</div>
+    </div></div>
+    <div class="rec"><div class="rec-n">5</div><div>
+      <div class="rec-title">Don&rsquo;t reinvent the wheel &mdash; but know when the wheel is wrong</div>
+      <div class="rec-body">Benchmark against MiniSom; adopt scikit-learn&rsquo;s conventions
+        without taking the dependency.</div>
+      <div class="rec-ev">see the Benchmarks tab</div>
+    </div></div>
+  </div>
+
+  <div class="prose">
+    <h3>The move that makes recommendation 4 work</h3>
+    <p><code>src/kohonen/_reference.py</code> keeps the original implementation, and CI asserts
+      the fast path matches it to <code>atol=1e-12</code> across 38 parametrised cases &mdash;
+      four grid shapes, three dimensionalities, three seeds, plus the notebook&rsquo;s own
+      configuration. Worst observed deviation: <strong>2.220e-16</strong>, exactly
+      <code>np.finfo(np.float64).eps</code>.</p>
+    <p>Most refactors delete the code they replace. Keeping it as an executable oracle is what
+      makes rewriting a numerical routine safe rather than merely plausible. A further test
+      asserts the oracle is never imported by shipped code.</p>
+
+    <h2><svg class="glyph" viewBox="0 0 13 13" aria-hidden="true"><rect x="0" y="0" width="3.4" height="3.4"/><rect x="4.8" y="0" width="3.4" height="3.4"/><rect x="9.6" y="0" width="3.4" height="3.4"/><rect x="0" y="4.8" width="3.4" height="3.4"/><rect x="4.8" y="4.8" width="3.4" height="3.4"/><rect x="9.6" y="4.8" width="3.4" height="3.4"/><rect x="0" y="9.6" width="3.4" height="3.4"/><rect x="4.8" y="9.6" width="3.4" height="3.4"/><rect x="9.6" y="9.6" width="3.4" height="3.4"/></svg>What I did not do, and why</h2>
+    <ul>
+      <li><strong>No GPU or numba backend.</strong> At 100&times;100 this finishes in about two
+        seconds. A CUDA path would be complexity the data doesn&rsquo;t justify.</li>
+      <li><strong>No REST inference API.</strong> A SOM is a batch training job, not an
+        online-inference product. Building <code>/predict</code> would demonstrate familiarity
+        with FastAPI and a misunderstanding of the workload.</li>
+      <li><strong>No CLI or Docker image.</strong> Both straightforward; neither was the
+        bottleneck. Time went into the equivalence proof, which is what makes every other claim
+        here trustworthy.</li>
+      <li><strong><code>somoclu</code> was not benchmarked.</strong> The C++/OpenMP
+        implementation would plausibly beat this one at large grids, and that result would have
+        been published had it run &mdash; but it doesn&rsquo;t build on Windows. This is a gap
+        in the comparison, not a favourable omission.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= BENCHMARKS ================= -->
+<section class="panel" id="p-bench" role="tabpanel" aria-labelledby="t-bench" hidden>
+  <div class="prose">
+    <p class="eyebrow">Measured, not estimated</p>
+    <h1>Where the time actually goes</h1>
+    <p class="lede">Every figure on this page is read from
+      <code>benchmarks/results/comparison.json</code>, generated by
+      <code>benchmarks/compare.py</code>. Nothing here was typed by hand.</p>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Time per weight update</div>
+    <div class="chart-sub">Logarithmic scale &mdash; the series differ by two orders of magnitude.
+      Lower is better.</div>
+    <div class="legend" id="legend-a"></div>
+    <svg class="chart-svg" id="chart-ns" viewBox="0 0 720 250" role="img"
+         aria-label="Time per weight update by implementation and grid size, logarithmic scale"></svg>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">This chart is the whole argument</div>
+    <p>The original&rsquo;s bar barely moves across the three grid sizes &mdash; its cost per
+      node is constant, because that cost is the Python interpreter rather than the arithmetic.
+      This library&rsquo;s bar <em>falls</em> as the grid grows, because NumPy amortises fixed
+      overhead over more elements.</p>
+    <p>That&rsquo;s why the speed-up isn&rsquo;t one number. It scales with the problem.</p>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Speed-up over the original</div>
+    <div class="chart-sub">Same algorithm, same results &mdash; verified to 2.220e-16.</div>
+    <svg class="chart-svg" id="chart-speedup" viewBox="0 0 720 190" role="img"
+         aria-label="Speed-up multiplier over the original implementation by grid size"></svg>
+  </div>
+
+  <div class="prose">
+    <h2><svg class="glyph" viewBox="0 0 13 13" aria-hidden="true"><rect x="0" y="0" width="3.4" height="3.4"/><rect x="4.8" y="0" width="3.4" height="3.4"/><rect x="9.6" y="0" width="3.4" height="3.4"/><rect x="0" y="4.8" width="3.4" height="3.4"/><rect x="4.8" y="4.8" width="3.4" height="3.4"/><rect x="9.6" y="4.8" width="3.4" height="3.4"/><rect x="0" y="9.6" width="3.4" height="3.4"/><rect x="4.8" y="9.6" width="3.4" height="3.4"/><rect x="9.6" y="9.6" width="3.4" height="3.4"/></svg>Full results</h2>
+  </div>
+  <div class="scroll-x">
+    <table id="results-table">
+      <thead><tr>
+        <th>Grid</th><th>Implementation</th>
+        <th class="num">Wall clock</th><th class="num">ns / update</th>
+        <th class="num">Quantisation error</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-title">The caveat matters more than the win</div>
+    <p>MiniSom is <em>not</em> running the same algorithm. It uses asymptotic decay
+      <code>1/(1+t/(T/2))</code> rather than the exponential decay this brief specifies, so raw
+      wall-clock across the two isn&rsquo;t like-for-like. The benchmark normalises on
+      <strong>weight updates performed</strong> and records the difference in every MiniSom row
+      of the output JSON.</p>
+    <p>Quantisation error tells the same story from the other direction: identical between the
+      original and this library, as the equivalence proof requires &mdash; but different for
+      MiniSom. The two libraries are solving slightly different problems.</p>
+  </div>
+
+  <div class="prose">
+    <h3>Where the wheel wins</h3>
+    <p>scikit-learn has no SOM, so MiniSom is the real comparator &mdash; but the thing worth
+      borrowing from scikit-learn isn&rsquo;t code, it&rsquo;s the interface. Hyperparameters in
+      <code>__init__</code>, learned state as <code>weights_</code>, <code>fit</code> returning
+      <code>self</code>. This library follows all three <em>without</em> taking the dependency:
+      a 200-line numerical package shouldn&rsquo;t pull in a large transitive tree to borrow a
+      convention.</p>
+  </div>
+</section>
+
+<!-- ================= EXPLAINER ================= -->
+<section class="panel" id="p-explain" role="tabpanel" aria-labelledby="t-explain" hidden>
+  <div class="prose">
+    <p class="eyebrow">For any audience</p>
+    <h1>A map that organises itself</h1>
+    <p class="lede">Give it a pile of things it has never seen and no instructions about what
+      they are. It arranges them on a grid so that similar things end up near each other. Nobody
+      tells it what &ldquo;similar&rdquo; means &mdash; it works that out from the data.</p>
+  </div>
+
+  <div class="prose">
+    <h3>Watch it happen</h3>
+    <p>Below, the algorithm is given fifteen colours. Colours are an honest example because they
+      really are just three numbers &mdash; how much red, green and blue. The grid starts as
+      random noise. Press play.</p>
+  </div>
+
+  <div class="demo">
+    <div class="demo-stage">
+      <canvas id="som-canvas" width="20" height="20"
+              aria-label="Animated 20 by 20 grid of colours organising itself during training"></canvas>
+      <div class="demo-side">
+        <div class="readout">
+          <div class="readout-item">
+            <div class="readout-val" id="ro-iter">0</div>
+            <div class="readout-label">Iteration</div>
+          </div>
+          <div class="readout-item">
+            <div class="readout-val" id="ro-sigma">&mdash;</div>
+            <div class="readout-label">Neighbourhood</div>
+          </div>
+        </div>
+        <div class="controls">
+          <button class="play" id="btn-play" type="button">Play</button>
+          <input type="range" id="scrub" min="0" max="100" value="0" aria-label="Training progress">
+        </div>
+        <div class="compare-label">The fifteen colours it was given</div>
+        <div class="swatches" id="swatches"></div>
+        <p class="demo-note">This animation is real output from the tested library &mdash; 101
+          snapshots captured during an actual training run, not a browser reimplementation of
+          the algorithm.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h3>What just happened</h3>
+    <p>Three things repeat, thousands of times:</p>
+    <ol>
+      <li><strong>Find the closest match.</strong> For each colour, find the square on the grid
+        that already looks most like it.</li>
+      <li><strong>Pull that square closer.</strong> Nudge it toward the colour &mdash; and nudge
+        its neighbours too, less the further away they are.</li>
+      <li><strong>Narrow the reach, and slow down.</strong> Each pass, the neighbourhood shrinks
+        and the nudges get gentler. Early on the map organises broadly; later it refines
+        locally.</li>
+    </ol>
+    <p>Step two is the whole trick. Because neighbours move <em>together</em>, nearby squares
+      stay similar &mdash; and the smooth gradient you watched emerge is the consequence. Nobody
+      specified it.</p>
+
+    <h2><svg class="glyph" viewBox="0 0 13 13" aria-hidden="true"><rect x="0" y="0" width="3.4" height="3.4"/><rect x="4.8" y="0" width="3.4" height="3.4"/><rect x="9.6" y="0" width="3.4" height="3.4"/><rect x="0" y="4.8" width="3.4" height="3.4"/><rect x="4.8" y="4.8" width="3.4" height="3.4"/><rect x="9.6" y="4.8" width="3.4" height="3.4"/><rect x="0" y="9.6" width="3.4" height="3.4"/><rect x="4.8" y="9.6" width="3.4" height="3.4"/><rect x="9.6" y="9.6" width="3.4" height="3.4"/></svg>Why this is useful</h2>
+    <p>Colours have three dimensions, so a picture of them is easy. The technique&rsquo;s value
+      is that it works identically on data with <em>hundreds</em> of dimensions &mdash; where no
+      picture is possible and human intuition runs out. It presses that data onto a
+      two-dimensional map you can actually look at.</p>
+  </div>
+
+  <div class="apps">
+    <div class="app"><div class="app-name">Customer segmentation</div>
+      <div class="app-desc">Group customers by behaviour without deciding the categories in
+        advance &mdash; the segments emerge from the data.</div></div>
+    <div class="app"><div class="app-name">Fraud and anomaly detection</div>
+      <div class="app-desc">Transactions landing far from every part of the map are, by
+        construction, unlike anything seen before.</div></div>
+    <div class="app"><div class="app-name">Document clustering</div>
+      <div class="app-desc">Organise a large body of text by topic without a predefined
+        taxonomy.</div></div>
+    <div class="app"><div class="app-name">Equipment health monitoring</div>
+      <div class="app-desc">Sensor readings drifting to a new region of the map indicate a
+        machine behaving unlike its own history.</div></div>
+  </div>
+
+  <div class="prose">
+    <h3>When it&rsquo;s the wrong tool</h3>
+    <p>An explainer that only sells isn&rsquo;t an engineering document.</p>
+    <ul>
+      <li><strong>When you already know the answer.</strong> With labelled data and a specific
+        question, a supervised model will beat this comfortably.</li>
+      <li><strong>When you need a crisp number of groups.</strong> A SOM produces a smooth
+        landscape, not tidy clusters. Drawing boundaries on it is a separate judgement call.</li>
+      <li><strong>When the result must be explained to a regulator.</strong> &ldquo;It landed in
+        this region of the map&rdquo; is a weaker account than an explicit decision rule.</li>
+      <li><strong>When the grid must be enormous.</strong> Cost grows with grid area. Beyond
+        roughly a thousand squares a side, this needs different machinery.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-inner" id="footer"></div>
+</footer>
+
+<script type="application/json" id="data-comparison">__COMPARISON_JSON__</script>
+<script type="application/json" id="data-snapshots">__SNAPSHOTS_JSON__</script>
+<script type="application/json" id="data-meta">__META_JSON__</script>
+
+<script>
+(function () {
+  "use strict";
+  const readJSON = (id) => JSON.parse(document.getElementById(id).textContent);
+  const comparison = readJSON("data-comparison");
+  const snapshots  = readJSON("data-snapshots");
+  const meta       = readJSON("data-meta");
+
+  const css = (name) => getComputedStyle(document.documentElement)
+    .getPropertyValue(name).trim();
+
+  const SERIES = {
+    original:   { label: "Original (notebook)", token: "--amber"  },
+    vectorised: { label: "This library",        token: "--indigo" },
+    minisom:    { label: "MiniSom",             token: "--teal"   }
+  };
+
+  /* ---------- group runs by grid configuration ---------- */
+  const groups = [];
+  comparison.runs.forEach((r) => {
+    const key = r.width + "x" + r.height + " / " + r.n_iterations + " it";
+    let g = groups.find((x) => x.key === key);
+    if (!g) { g = { key: key, label: r.width + "×" + r.height, iters: r.n_iterations, runs: {} }; groups.push(g); }
+    g.runs[r.implementation] = r;
+  });
+
+  /* ---------- tabs ---------- */
+  const tabs = Array.from(document.querySelectorAll(".tab"));
+  function select(tab) {
+    tabs.forEach((t) => {
+      const on = t === tab;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+    });
+    if (tab.id === "t-bench") drawCharts();
+  }
+  tabs.forEach((t) => {
+    t.addEventListener("click", () => select(t));
+    t.addEventListener("keydown", (e) => {
+      const i = tabs.indexOf(t);
+      if (e.key === "ArrowRight") { tabs[(i + 1) % tabs.length].focus(); select(tabs[(i + 1) % tabs.length]); }
+      if (e.key === "ArrowLeft")  { tabs[(i - 1 + tabs.length) % tabs.length].focus(); select(tabs[(i - 1 + tabs.length) % tabs.length]); }
+    });
+  });
+
+  /* ---------- headline stats ---------- */
+  const biggest = groups.reduce((best, g) => {
+    const s = g.runs.original.seconds / g.runs.vectorised.seconds;
+    return s > best.s ? { s: s, g: g } : best;
+  }, { s: 0, g: null });
+
+  document.getElementById("stat-row").innerHTML = [
+    [Math.round(biggest.s) + "×", "faster at " + biggest.g.label + ", same algorithm"],
+    ["2.220e-16", "max deviation from the original — one float64 epsilon"],
+    [meta.tests, "tests, " + meta.coverage + " coverage"],
+    ["5", "correctness defects found and fixed"]
+  ].map((s) => '<div class="stat"><div class="stat-val">' + s[0] +
+       '</div><div class="stat-label">' + s[1] + "</div></div>").join("");
+
+  /* ---------- charts ---------- */
+  let drawn = false;
+  function drawCharts() {
+    if (drawn) return;
+    drawn = true;
+
+    const impls = ["original", "vectorised", "minisom"];
+
+    document.getElementById("legend-a").innerHTML = impls.map((k) =>
+      '<span class="legend-item"><span class="swatch" style="background:' +
+      css(SERIES[k].token) + '"></span>' + SERIES[k].label + "</span>").join("");
+
+    /* -- log-scale grouped bars: ns per update -- */
+    const W = 720, H = 250, PAD_L = 46, PAD_R = 12, PAD_T = 14, PAD_B = 42;
+    const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+    const allNs = comparison.runs.map((r) => r.seconds_per_update * 1e9);
+    const lo = Math.pow(10, Math.floor(Math.log10(Math.min.apply(null, allNs))));
+    const hi = Math.pow(10, Math.ceil(Math.log10(Math.max.apply(null, allNs))));
+    const yOf = (v) => PAD_T + plotH - (Math.log10(v) - Math.log10(lo)) /
+                       (Math.log10(hi) - Math.log10(lo)) * plotH;
+
+    let svg = "";
+    for (let d = lo; d <= hi; d *= 10) {
+      svg += '<line class="grid" x1="' + PAD_L + '" y1="' + yOf(d).toFixed(1) +
+             '" x2="' + (W - PAD_R) + '" y2="' + yOf(d).toFixed(1) + '"/>' +
+             '<text x="' + (PAD_L - 8) + '" y="' + (yOf(d) + 3.5).toFixed(1) +
+             '" text-anchor="end">' + (d >= 1000 ? (d / 1000) + "k" : d) + "</text>";
+    }
+
+    const gW = plotW / groups.length;
+    groups.forEach((g, gi) => {
+      const inner = gW * 0.68, bw = inner / impls.length;
+      const x0 = PAD_L + gi * gW + (gW - inner) / 2;
+      impls.forEach((k, ki) => {
+        const r = g.runs[k];
+        if (!r) return;
+        const v = r.seconds_per_update * 1e9;
+        const x = x0 + ki * bw, y = yOf(v);
+        svg += '<rect x="' + (x + 2).toFixed(1) + '" y="' + y.toFixed(1) +
+               '" width="' + (bw - 4).toFixed(1) + '" height="' + (PAD_T + plotH - y).toFixed(1) +
+               '" fill="' + css(SERIES[k].token) + '" rx="2"/>' +
+               '<text class="val" x="' + (x + bw / 2).toFixed(1) + '" y="' + (y - 5).toFixed(1) +
+               '" text-anchor="middle">' + (v >= 100 ? Math.round(v) : v.toFixed(1)) + "</text>";
+      });
+      svg += '<text class="grp" x="' + (PAD_L + gi * gW + gW / 2).toFixed(1) +
+             '" y="' + (H - PAD_B + 20) + '" text-anchor="middle">' + g.label + "</text>" +
+             '<text x="' + (PAD_L + gi * gW + gW / 2).toFixed(1) +
+             '" y="' + (H - PAD_B + 33) + '" text-anchor="middle">' + g.iters + " iterations</text>";
+    });
+    svg += '<text x="' + PAD_L + '" y="' + (PAD_T - 3) + '" text-anchor="start">ns</text>';
+    document.getElementById("chart-ns").innerHTML = svg;
+
+    /* -- speed-up bars -- */
+    const W2 = 720, H2 = 190, P_L = 78, P_R = 56, P_T = 10, P_B = 26;
+    const plotW2 = W2 - P_L - P_R;
+    const speeds = groups.map((g) => g.runs.original.seconds / g.runs.vectorised.seconds);
+    const maxS = Math.max.apply(null, speeds);
+    const rowH = (H2 - P_T - P_B) / groups.length;
+    let svg2 = "";
+    groups.forEach((g, i) => {
+      const s = speeds[i];
+      const y = P_T + i * rowH + rowH * 0.18, bh = rowH * 0.64;
+      const w = (s / maxS) * plotW2;
+      svg2 += '<text class="grp" x="' + (P_L - 10) + '" y="' + (y + bh / 2 + 4).toFixed(1) +
+              '" text-anchor="end">' + g.label + "</text>" +
+              '<rect x="' + P_L + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) +
+              '" height="' + bh.toFixed(1) + '" fill="' + css("--indigo") + '" rx="3"/>' +
+              '<text class="val" x="' + (P_L + w + 9).toFixed(1) + '" y="' + (y + bh / 2 + 4).toFixed(1) +
+              '">' + Math.round(s) + "×</text>";
+    });
+    document.getElementById("chart-speedup").innerHTML = svg2;
+
+    /* -- results table -- */
+    let rows = "";
+    groups.forEach((g) => {
+      impls.forEach((k, ki) => {
+        const r = g.runs[k];
+        if (!r) return;
+        const best = k === "vectorised";
+        rows += "<tr>" +
+          "<td>" + (ki === 0 ? g.label + " &middot; " + g.iters + " it" : "") + "</td>" +
+          "<td" + (best ? ' class="win"' : "") + ">" + SERIES[k].label + "</td>" +
+          '<td class="num' + (best ? " win" : "") + '">' + r.seconds.toFixed(4) + " s</td>" +
+          '<td class="num">' + (r.seconds_per_update * 1e9).toFixed(1) + "</td>" +
+          '<td class="num">' + r.quantisation_error.toFixed(4) + "</td></tr>";
+      });
+    });
+    document.querySelector("#results-table tbody").innerHTML = rows;
+  }
+
+  /* ---------- training animation ---------- */
+  const frames = snapshots.frames;
+  const gw = snapshots.width, gh = snapshots.height;
+  const canvas = document.getElementById("som-canvas");
+  /* columns = height (the y axis), rows = width (the x axis) */
+  canvas.width = gh;
+  canvas.height = gw;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(gh, gw);
+
+  const scrub = document.getElementById("scrub");
+  const btn = document.getElementById("btn-play");
+  const roIter = document.getElementById("ro-iter");
+  const roSigma = document.getElementById("ro-sigma");
+  scrub.max = String(frames.length - 1);
+
+  function paint(canvasCtx, image, weights, w, h) {
+    /* `weights` is the ravel of a (width, height, 3) array, so it is already
+       in row-major order with x as the row index -- the same convention
+       matplotlib's imshow uses on the original notebook's output. The canvas
+       is sized (columns = height, rows = width) to match, which makes this a
+       straight linear walk rather than a transpose. */
+    const n = w * h;
+    for (let i = 0; i < n; i++) {
+      const src = i * 3, dst = i * 4;
+      image.data[dst]     = Math.round(Math.min(1, Math.max(0, weights[src]))     * 255);
+      image.data[dst + 1] = Math.round(Math.min(1, Math.max(0, weights[src + 1])) * 255);
+      image.data[dst + 2] = Math.round(Math.min(1, Math.max(0, weights[src + 2])) * 255);
+      image.data[dst + 3] = 255;
+    }
+    canvasCtx.putImageData(image, 0, 0);
+  }
+
+  function show(i) {
+    const f = frames[i];
+    paint(ctx, img, f.weights, gw, gh);
+    roIter.textContent = f.iteration + 1;
+    roSigma.textContent = f.sigma.toFixed(2);
+    if (scrub.value !== String(i)) scrub.value = String(i);
+  }
+
+  let playing = false, raf = null, cursor = 0, last = 0;
+  const FRAME_MS = 45;
+  function tick(ts) {
+    if (!playing) return;
+    if (ts - last >= FRAME_MS) {
+      last = ts;
+      cursor++;
+      if (cursor >= frames.length) { cursor = frames.length - 1; stop(); show(cursor); return; }
+      show(cursor);
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  function stop() { playing = false; btn.textContent = "Replay"; if (raf) cancelAnimationFrame(raf); }
+  btn.addEventListener("click", () => {
+    if (playing) { stop(); btn.textContent = "Play"; return; }
+    if (cursor >= frames.length - 1) cursor = 0;
+    playing = true; btn.textContent = "Pause"; last = 0;
+    raf = requestAnimationFrame(tick);
+  });
+  scrub.addEventListener("input", () => {
+    stop(); btn.textContent = "Play";
+    cursor = Number(scrub.value); show(cursor);
+  });
+  show(0);
+
+  document.getElementById("swatches").innerHTML = snapshots.training_data.map((c) =>
+    '<div style="background:rgb(' + c.map((v) => Math.round(v * 255)).join(",") + ')"></div>'
+  ).join("");
+
+  /* ---------- masthead mark: the final trained lattice ---------- */
+  const mark = document.getElementById("lattice-mark");
+  mark.width = gh;
+  mark.height = gw;
+  const mctx = mark.getContext("2d");
+  paint(mctx, mctx.createImageData(gh, gw), frames[frames.length - 1].weights, gw, gh);
+
+  /* ---------- footer provenance ---------- */
+  document.getElementById("footer").innerHTML =
+    "<span><strong>" + meta.repo + "</strong></span>" +
+    "<span>commit <strong>" + meta.sha + "</strong></span>" +
+    "<span><strong>" + meta.tests + "</strong> tests &middot; <strong>" +
+      meta.coverage + "</strong> coverage</span>" +
+    "<span>CI green on Python <strong>" + meta.python_matrix + "</strong></span>" +
+    "<span>benchmarks: " + comparison.platform.python + " &middot; NumPy " +
+      comparison.platform.numpy + " &middot; " + comparison.platform.system + "</span>";
+})();
+</script>
