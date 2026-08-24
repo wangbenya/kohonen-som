@@ -1,9 +1,15 @@
 name: CI
 
 on:
+  # Every branch, not just main: a feature branch should be verified before it
+  # is proposed, not after. Concurrency below cancels superseded runs so the
+  # broader trigger does not burn minutes on stale commits.
   push:
-    branches: [main]
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
