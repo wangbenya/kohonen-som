@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from kohonen.config import TrainingConfig
+
 __version__ = "0.1.0"
 
-__all__ = ["__version__"]
+__all__ = ["TrainingConfig", "__version__"]
