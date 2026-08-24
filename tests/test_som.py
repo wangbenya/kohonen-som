@@ -99,6 +99,7 @@ def test_invalid_grid_dimensions_are_rejected(width: int, height: int) -> None:
         np.array([1.0, 2.0, 3.0]),  # 1-D
         np.zeros((2, 2, 2)),  # 3-D
         np.empty((0, 3)),  # no samples
+        np.empty((2, 0)),  # no features
         np.array([[np.nan, 1.0, 2.0]]),  # not finite
         np.array([[np.inf, 1.0, 2.0]]),  # not finite
     ],
