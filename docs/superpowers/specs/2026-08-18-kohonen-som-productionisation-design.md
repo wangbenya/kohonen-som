@@ -1,6 +1,9 @@
 # Kohonen SOM: From Notebook to Production Package — Design
 
 **Date:** 2026-08-18
+**Amended:** 2026-08-24 — added three-way comparative benchmarking, the
+communication site, and the executive explainer. Budget revised from ~8h to
+~12h.
 **Status:** Approved
 **Context:** Technical interview deliverable, Lead Machine Learning Engineer, Mantel Group.
 
@@ -18,7 +21,7 @@ recommendations *credible*, not to be exhaustively toured.
 
 ## Constraints
 
-- **Time budget: ~8 hours.** Depth in a few places beats thin coverage
+- **Time budget: ~12 hours.** Depth in a few places beats thin coverage
   everywhere.
 - **Build the library and CI; document the deployment.** No half-built service,
   CLI, or Docker image. The deployment story is an ADR with a diagram.
@@ -39,6 +42,12 @@ recommendations *credible*, not to be exhaustively toured.
 5. CI runs green on GitHub Actions across Python 3.10-3.13.
 6. `docs/REVIEW.md` states the five recommendations, each backed by evidence
    from the repository.
+7. The benchmark suite produces a three-way comparison (original, vectorised,
+   MiniSom) normalised on weight updates performed, with algorithmic
+   differences stated in the output rather than hidden.
+8. A single published web page carries three tabs — Review, Benchmarks, and an
+   executive explainer — and every number and animation on it is generated
+   from committed code, not hand-authored.
 
 ---
 
@@ -140,6 +149,16 @@ that the test suite can import it; a test asserts this isolation.
 ### Public API
 
 ```python
+class IterationCallback(Protocol):
+    """Observer invoked once per training iteration. Must not mutate weights."""
+    def __call__(
+        self,
+        iteration: int,
+        weights: NDArray[np.float64],
+        sigma: float,
+        alpha: float,
+    ) -> None: ...
+
 @dataclass(frozen=True, slots=True)
 class TrainingConfig:
     n_iterations: int = 100
@@ -150,7 +169,12 @@ class TrainingConfig:
 
 class SOM:
     def __init__(self, width: int, height: int, *, config: TrainingConfig = ...) -> None: ...
-    def fit(self, data: NDArray[np.floating]) -> Self: ...
+    def fit(
+        self,
+        data: NDArray[np.floating],
+        *,
+        on_iteration: IterationCallback | None = None,
+    ) -> Self: ...
     def predict(self, data: NDArray[np.floating]) -> NDArray[np.intp]: ...
     def transform(self, data: NDArray[np.floating]) -> NDArray[np.floating]: ...
     def quantisation_error(self, data: NDArray[np.floating]) -> float: ...
@@ -174,6 +198,14 @@ class SOM:
 - **`n_features` inferred at `fit` time**, removing the hardcoded 3.
 - **`TrainingConfig` is frozen and hashable**, so it can be logged wholesale as
   MLflow parameters.
+- **Training observability via an optional callback**, not accumulated state.
+  `fit` accepts `on_iteration: (iteration, weights, sigma, alpha) -> None`.
+  When it is `None` — the default — there is zero overhead and no memory
+  growth. The visualisation exporter, MLflow metric logging, and any future
+  progress bar are all consumers of this one hook, so none of them require a
+  change to the training loop. Accumulating a `history_` array on the estimator
+  was rejected: it would make every training run pay the memory cost of a
+  feature most runs do not use.
 
 ### Numerical approach
 
@@ -220,6 +252,96 @@ Coverage gate: `--cov-fail-under=95`.
 
 ---
 
+## Comparative Benchmarking
+
+`benchmarks/` produces a three-way comparison: **the original implementation**,
+**the vectorised implementation**, and **MiniSom** (the de facto community
+package; scikit-learn has no SOM).
+
+### The fairness problem
+
+The original and the vectorised implementation are the same algorithm, which
+the `2.2e-16` equivalence result proves. MiniSom is not: its default decay is
+asymptotic, `1 / (1 + t / (T/2))`, rather than exponential, and it distinguishes
+`train_random` from `train_batch`. A raw wall-clock comparison across all three
+would therefore be misleading.
+
+Mitigations, all of which appear in the published output rather than only in
+the code:
+
+- Normalise on **weight updates performed**, not iterations, so each library is
+  charged for the same quantity of work.
+- Report **time per weight update** as the headline figure alongside total
+  wall-clock.
+- State the algorithmic differences in the results table itself.
+- Report **quantisation error** next to the timings, so the comparison shows
+  solution quality and not merely speed.
+
+### Honest reporting
+
+`somoclu` (C++/OpenMP) is included on a best-effort basis; it is awkward to
+install on Windows, so the harness skips it gracefully when unavailable. It may
+outperform the NumPy implementation. **If it does, that result is published.**
+Documenting where an existing library beats this one — and stating the grid
+size at which the trade flips — is a more complete answer to the brief's
+question about existing packages than winning the benchmark would be.
+
+Each benchmark writes machine-readable JSON to `benchmarks/results/`, which is
+the single source for every figure quoted in the README and on the site. No
+number is ever transcribed by hand.
+
+---
+
+## Communication Artefacts
+
+One published page, three tabs, one URL to screenshare:
+
+| Tab | Audience | Content |
+|---|---|---|
+| **Review** | Technical interviewer | Observations and the five recommendations, with before/after code |
+| **Benchmarks** | Technical interviewer | Three-way comparison charts, generated from `benchmarks/results/*.json` |
+| **How a SOM Works** | Executive / non-technical | Animated explainer and applications |
+
+### The executive explainer
+
+The audience is assumed to have no machine-learning background. It answers, in
+order: what problem does this solve, what is the algorithm doing, and where
+would we use it.
+
+- **The core idea before the mechanism.** A SOM presses many-dimensional data
+  onto a two-dimensional map while keeping similar things near each other. The
+  RGB example carries this without jargon: colours are three numbers, and the
+  trained map sorts them into a smooth gradient nobody programmed.
+- **Animated training.** A scrubber and a play control run through snapshots of
+  a real training run, from random noise to an organised map.
+- **Applications**, each one sentence: customer segmentation, anomaly and fraud
+  detection, document and text clustering, sensor and equipment health
+  monitoring.
+- **Honest limits.** Where a SOM is the wrong tool. An explainer that only
+  sells is a sales deck, not an engineering artefact.
+
+### How the animation is produced
+
+The visualisation is driven by **real output from the tested package**, never a
+JavaScript reimplementation. `benchmarks/export_snapshots.py` trains a SOM
+using the `on_iteration` callback, captures weight snapshots at intervals, and
+writes compact JSON to `benchmarks/results/`. The page embeds that JSON and
+animates it on a canvas in dependency-free JavaScript.
+
+This is a deliberate trade: viewers scrub through precomputed runs rather than
+setting arbitrary parameters live. The gain is that the animation is
+demonstrably the library's real behaviour, which a browser reimplementation
+could never claim.
+
+Snapshot budget: a 20x20x3 grid at 100 frames is roughly 120k floats, which is
+comfortably inside the 16MB page limit at reduced precision.
+
+Constraint: the page runs under a strict content-security policy. Everything —
+CSS, JavaScript, data — must be inlined. No CDN, no external fonts, no runtime
+fetches.
+
+---
+
 ## Tooling and CI
 
 `pyproject.toml` with `uv` for dependency resolution and locking. GitHub
@@ -260,12 +382,13 @@ product, and the ADR is explicit about that framing:
 |---|---|
 | `src/kohonen/` | The package |
 | `tests/` | Test suite, >=95% coverage |
-| `benchmarks/` | Reproducible speed-up and MiniSom comparison |
+| `benchmarks/` | Three-way comparison harness, plus the snapshot exporter |
+| `benchmarks/results/*.json` | Machine-readable results; the only source for quoted figures |
 | `docs/REVIEW.md` | Observations and the five recommendations |
 | `docs/adr/0001-productionisation.md` | Deployment design |
 | `README.md` | Install, quickstart, headline benchmark |
 | `.github/workflows/ci.yml` | The CI pipeline |
-| Published web page | Screenshare artefact for the walkthrough, generated from `REVIEW.md` |
+| Published web page | Three tabs: Review, Benchmarks, executive explainer. One URL to screenshare. |
 | `notebooks/kohonen.ipynb` | Unchanged original |
 
 **Commit history is part of the deliverable.** The work lands as roughly ten
@@ -279,6 +402,15 @@ atomic, well-messaged commits rather than a single dump.
 | 2-3 | Core package, test-driven |
 | 4 | `_reference.py` and the equivalence suite |
 | 5 | Property and edge-case tests to 95% coverage |
-| 6 | Benchmarks and MiniSom comparison |
-| 7 | `REVIEW.md`, ADR, README |
-| 8 | Published web page and a dry run of the walkthrough |
+| 6 | `on_iteration` callback, its tests, and the snapshot exporter |
+| 7-8 | Three-way benchmark harness, JSON results, MiniSom and somoclu |
+| 9 | `REVIEW.md`, ADR, README, all figures read from the JSON |
+| 10 | Site: Review and Benchmarks tabs, charts from real results |
+| 11 | Site: executive explainer and the training animation |
+| 12 | Publish, verify both themes and mobile, dry run the walkthrough |
+
+The ordering is a dependency chain, not a preference: the callback (hour 6)
+must exist before snapshots can be exported, the benchmarks (hours 7-8) must
+produce JSON before any figure can be quoted, and the site (hours 10-11)
+consumes both. Nothing on the site is hand-authored, so nothing on the site can
+be built early.
