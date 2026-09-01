@@ -87,7 +87,7 @@ Ordered by business impact rather than technical novelty.
 | # | Recommendation | Evidence |
 |---|---|---|
 | 1 | **Vectorise the neighbourhood update** — broadcast over a coordinate grid built once per run | 155× at 100×100; deviation 2.220e-16 |
-| 2 | **Make it correct and reproducible** — seed injection, guard the degenerate radius, validate inputs, infer dimensionality | Fixes 5 defects including a division by zero |
+| 2 | **Make it correct and reproducible** — seed injection, guard the degenerate radius, validate inputs, infer dimensionality | Fixes 3 of the 5 defects; see below for why not all 5 |
 | 3 | **Separate the algorithm from its I/O** — a typed `SOM` with `fit`/`predict`; no plotting inside the trainer | Enables testing, reuse, non-RGB data |
 | 4 | **Test it like it ships** — keep the original as an executable oracle | 52 tests, 100% coverage, CI on 3.10–3.14 |
 | 5 | **Don't reinvent the wheel — but know when the wheel is wrong** — benchmark against MiniSom, adopt scikit-learn's conventions without the dependency | See below |
@@ -102,6 +102,36 @@ removed is per-node interpreter overhead:
 | 10×10, 100 iterations | 0.308 s | 0.0130 s | **24×** |
 | 30×30, 100 iterations | 2.750 s | 0.0299 s | **92×** |
 | 100×100, 10 iterations | 3.034 s | 0.0196 s | **155×** |
+
+### On recommendation 2 — why only three of five
+
+Three defects are fixed; two are deliberately left in place. The reason is a real
+tension, and it is worth stating plainly rather than quietly fixing everything.
+
+**Fixed**, because each is *out-of-band* — none changes what the algorithm computes for
+a valid input:
+
+- the division by zero, which only ever fired on grids the original crashed on
+- the hardcoded dimensionality, which does not affect the three-feature path
+- the missing seed, which changes only the starting point, not the arithmetic
+
+**Not fixed**, because each *does* change the computation:
+
+- the radius is still not used as a cutoff; the Gaussian still applies to every node
+- `t` is still the epoch index rather than the iteration counter
+
+Changing either would move the numbers, and the equivalence assertion against
+`_reference.py` would fail — correctly. **A rewrite cannot simultaneously prove it
+computes what the original computed and change what is computed.** Those are opposite
+claims.
+
+So the sequencing matters: establish equivalence first, which makes the vectorisation
+provably safe; then change semantics deliberately, one at a time, each with its own
+before-and-after evidence. Fixing all five in the same commit as a 155× rewrite would
+mean never being able to attribute a behaviour change to its cause.
+
+Both remaining defects are documented above rather than silently carried. They are the
+first two items of follow-up work, not oversights.
 
 ### On recommendation 4
 
@@ -178,6 +208,7 @@ hardware.
 - **No CLI or Docker image.** Both straightforward; neither was the bottleneck. The time
   went into the equivalence proof, which is what makes every other claim here
   trustworthy.
+- **The two semantic defects are unfixed by design** — the radius cutoff and the epoch-vs-iteration counter. Fixing either breaks equivalence with the oracle, so they are follow-up work with their own evidence, not part of the rewrite. See "On recommendation 2".
 - **`somoclu` was not benchmarked.** The C++/OpenMP implementation would plausibly beat
   this one at large grids, and that result would have been published had it run — but it
   does not build on Windows. This is a gap in the comparison, not a favourable omission.
