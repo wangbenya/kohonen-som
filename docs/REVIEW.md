@@ -208,7 +208,10 @@ hardware.
 - **No CLI or Docker image.** Both straightforward; neither was the bottleneck. The time
   went into the equivalence proof, which is what makes every other claim here
   trustworthy.
-- **The two semantic defects are unfixed by design** — the radius cutoff and the epoch-vs-iteration counter. Fixing either breaks equivalence with the oracle, so they are follow-up work with their own evidence, not part of the rewrite. See "On recommendation 2".
+- **Two of the five defects are unfixed, by design.** The radius cutoff and the
+  epoch-vs-iteration counter both change what the algorithm computes, so fixing
+  either would break equivalence with the oracle. They are sequenced as follow-up
+  work with their own before-and-after evidence, not folded into the rewrite.
 - **`somoclu` was not benchmarked.** The C++/OpenMP implementation would plausibly beat
   this one at large grids, and that result would have been published had it run — but it
   does not build on Windows. This is a gap in the comparison, not a favourable omission.
