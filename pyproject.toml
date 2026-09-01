@@ -1,5 +1,8 @@
 [project]
-name = "kohonen"
+# Distribution name, deliberately not "kohonen": that name is taken on PyPI by
+# an unrelated vector-quantiser library last released in 2014. The import name
+# stays `kohonen`.
+name = "kohonen-som"
 version = "0.1.0"
 description = "A vectorised, tested Kohonen Self-Organising Map."
 readme = "README.md"

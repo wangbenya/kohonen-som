@@ -548,7 +548,28 @@ update(node, by=theta)
   </div>
 
   <div class="pre-label">Install</div>
-<pre>uv add kohonen          # or: pip install kohonen</pre>
+<pre># Straight from the repository
+uv add git+https://github.com/wangbenya/kohonen-som.git
+
+# Or clone it to work on
+git clone https://github.com/wangbenya/kohonen-som.git
+cd kohonen-som &amp;&amp; uv sync --extra dev
+
+# Or build a wheel to hand to another team
+uv build &amp;&amp; pip install dist/kohonen_som-0.1.0-py3-none-any.whl</pre>
+
+  <div class="idea amber">
+    <div class="idea-t">Not on PyPI — and <code>pip install kohonen</code> is a trap</div>
+    <p>That name is already taken. <code>kohonen</code> on PyPI is an unrelated
+      vector-quantiser library, last released in <strong>2014</strong>. Running that
+      command does not fail; it quietly installs a different decade-old package. This
+      distribution is therefore named <code>kohonen-som</code>, while the import stays
+      <code>kohonen</code>.</p>
+    <p>Publishing to PyPI would be the wrong move anyway. Inside an organisation the
+      answer is a <strong>private index</strong> — Azure Artifacts, AWS CodeArtifact, or
+      an internal devpi — so versions are pinned and auditable and the supply chain stays
+      inside the tenancy. Public publication is for public libraries.</p>
+  </div>
 
   <div class="pre-label" style="margin-top:22px">Train and use a map</div>
 <pre>import numpy as np
