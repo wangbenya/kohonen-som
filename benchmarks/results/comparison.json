@@ -1,0 +1,128 @@
+{
+  "generated_at": "2026-09-01T07:37:27.225352+00:00",
+  "platform": {
+    "python": "3.13.14",
+    "numpy": "2.5.2",
+    "system": "Windows",
+    "processor": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD"
+  },
+  "runs": [
+    {
+      "implementation": "original",
+      "width": 10,
+      "height": 10,
+      "n_iterations": 100,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 0.30822430015541613,
+      "weight_updates": 100000,
+      "seconds_per_update": 3.0822430015541615e-06,
+      "quantisation_error": 0.059940467369172114,
+      "notes": "Triple-nested Python loop, as written in the challenge notebook."
+    },
+    {
+      "implementation": "vectorised",
+      "width": 10,
+      "height": 10,
+      "n_iterations": 100,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 0.013027700129896402,
+      "weight_updates": 100000,
+      "seconds_per_update": 1.30277001298964e-07,
+      "quantisation_error": 0.059940467369172114,
+      "notes": "Same algorithm as 'original'; equivalence asserted to 1e-12 in CI."
+    },
+    {
+      "implementation": "minisom",
+      "width": 10,
+      "height": 10,
+      "n_iterations": 100,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 0.017596099991351366,
+      "weight_updates": 100000,
+      "seconds_per_update": 1.7596099991351367e-07,
+      "quantisation_error": 0.08778412488072149,
+      "notes": "Different algorithm: MiniSom uses asymptotic decay 1/(1+t/(T/2)), not the exponential decay this brief specifies. Compare seconds_per_update, not total runtime."
+    },
+    {
+      "implementation": "original",
+      "width": 30,
+      "height": 30,
+      "n_iterations": 100,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 2.7497411998920143,
+      "weight_updates": 900000,
+      "seconds_per_update": 3.055267999880016e-06,
+      "quantisation_error": 0.05024165015450123,
+      "notes": "Triple-nested Python loop, as written in the challenge notebook."
+    },
+    {
+      "implementation": "vectorised",
+      "width": 30,
+      "height": 30,
+      "n_iterations": 100,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 0.029868099838495255,
+      "weight_updates": 900000,
+      "seconds_per_update": 3.318677759832806e-08,
+      "quantisation_error": 0.050241650154501216,
+      "notes": "Same algorithm as 'original'; equivalence asserted to 1e-12 in CI."
+    },
+    {
+      "implementation": "minisom",
+      "width": 30,
+      "height": 30,
+      "n_iterations": 100,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 0.041666300036013126,
+      "weight_updates": 900000,
+      "seconds_per_update": 4.6295888928903476e-08,
+      "quantisation_error": 0.0663079341607721,
+      "notes": "Different algorithm: MiniSom uses asymptotic decay 1/(1+t/(T/2)), not the exponential decay this brief specifies. Compare seconds_per_update, not total runtime."
+    },
+    {
+      "implementation": "original",
+      "width": 100,
+      "height": 100,
+      "n_iterations": 10,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 3.0341601001564413,
+      "weight_updates": 1000000,
+      "seconds_per_update": 3.0341601001564413e-06,
+      "quantisation_error": 0.10309535786435386,
+      "notes": "Triple-nested Python loop, as written in the challenge notebook."
+    },
+    {
+      "implementation": "vectorised",
+      "width": 100,
+      "height": 100,
+      "n_iterations": 10,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 0.019595500081777573,
+      "weight_updates": 1000000,
+      "seconds_per_update": 1.9595500081777572e-08,
+      "quantisation_error": 0.10309535786435386,
+      "notes": "Same algorithm as 'original'; equivalence asserted to 1e-12 in CI."
+    },
+    {
+      "implementation": "minisom",
+      "width": 100,
+      "height": 100,
+      "n_iterations": 10,
+      "n_samples": 10,
+      "n_features": 3,
+      "seconds": 0.029494900023564696,
+      "weight_updates": 1000000,
+      "seconds_per_update": 2.9494900023564696e-08,
+      "quantisation_error": 0.11480554144976522,
+      "notes": "Different algorithm: MiniSom uses asymptotic decay 1/(1+t/(T/2)), not the exponential decay this brief specifies. Compare seconds_per_update, not total runtime."
+    }
+  ]
+}
