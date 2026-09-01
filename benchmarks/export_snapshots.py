@@ -34,7 +34,7 @@ def main() -> None:
     # image.
     checkpoints = sorted(
         {
-            int(round((i / (N_FRAMES - 1)) ** 1.7 * (N_ITERATIONS - 1)))
+            round((i / (N_FRAMES - 1)) ** 1.7 * (N_ITERATIONS - 1))
             for i in range(N_FRAMES)
         }
     )
