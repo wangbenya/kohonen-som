@@ -1,51 +1,80 @@
-"""The Kohonen Self-Organising Map estimator."""
+"""The Kohonen Self-Organising Map."""
 
 from __future__ import annotations
 
-from typing import Protocol
+import math
+import warnings
+from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
 
-from kohonen.config import TrainingConfig
-from kohonen.decay import ExponentialDecay, clamped_radius, time_constant
-from kohonen.neighbourhood import (
-    coordinate_grid,
-    gaussian_influence,
-    squared_distance_to,
-)
+MIN_RADIUS = 1.0 + 1e-9
+"""Floor for the initial radius.
+
+The brief derives ``tau = n_iterations / log(sigma_0)``, which is undefined at
+``sigma_0 == 1`` (a 2x2 grid) and negative below it (1x1), where a negative
+time constant makes the neighbourhood *grow* instead of decay. Small grids are
+legitimate input, so the radius is clamped rather than rejected.
+"""
 
 
-class IterationCallback(Protocol):
-    """Observer invoked once per training iteration.
+@dataclass(frozen=True, slots=True)
+class TrainingConfig:
+    """Hyperparameters for a training run.
 
-    Implementations must treat ``weights`` as read-only; it is the live
-    training array, not a copy. Copy it if you need to retain it.
+    Frozen and hashable so a whole run's parameters can be logged in one call
+    (MLflow params, for instance) without defensive copying.
+
+    Args:
+        n_iterations: Passes over the training data. Zero yields an untrained
+            map, which is useful as a baseline.
+        initial_learning_rate: Learning rate at t=0.
+        initial_radius: Neighbourhood radius at t=0. ``None`` means
+            ``max(width, height) / 2``, as the brief specifies.
+        seed: Seed for weight initialisation. ``None`` is not reproducible.
     """
 
-    def __call__(
-        self,
-        iteration: int,
-        weights: NDArray[np.float64],
-        sigma: float,
-        alpha: float,
-    ) -> None: ...
+    n_iterations: int = 100
+    initial_learning_rate: float = 0.1
+    initial_radius: float | None = None
+    seed: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.n_iterations < 0:
+            raise ValueError(
+                f"n_iterations must be non-negative, got {self.n_iterations}"
+            )
+        if self.initial_learning_rate <= 0:
+            raise ValueError(
+                "initial_learning_rate must be positive, "
+                f"got {self.initial_learning_rate}"
+            )
+        if self.initial_radius is not None and self.initial_radius <= 0:
+            raise ValueError(
+                f"initial_radius must be positive, got {self.initial_radius}"
+            )
+
+    def resolved_radius(self, width: int, height: int) -> float:
+        """The initial radius, defaulting to half the longest side."""
+        if self.initial_radius is not None:
+            return self.initial_radius
+        return max(width, height) / 2
 
 
 def initialise_weights(
     width: int, height: int, n_features: int, seed: int | None
 ) -> NDArray[np.float64]:
     """Draw uniform random weights in ``[0, 1)`` from a seeded generator."""
-    rng = np.random.default_rng(seed)
-    return rng.random((width, height, n_features))
+    return np.random.default_rng(seed).random((width, height, n_features))
 
 
-def _validate_data(data: NDArray[np.floating]) -> NDArray[np.float64]:
+def _validate(data: NDArray[np.floating]) -> NDArray[np.float64]:
     array = np.asarray(data, dtype=np.float64)
     if array.ndim != 2:
         raise ValueError(
-            f"data must be 2-D with shape (n_samples, n_features), "
-            f"got {array.ndim}-D with shape {array.shape}"
+            "data must be 2-D with shape (n_samples, n_features), got "
+            f"{array.ndim}-D with shape {array.shape}"
         )
     if array.shape[0] == 0:
         raise ValueError("data must contain at least one sample")
@@ -61,7 +90,7 @@ class SOM:
 
     Follows scikit-learn's conventions -- hyperparameters in ``__init__``,
     learned state suffixed with an underscore, ``fit`` returning ``self`` --
-    without taking a dependency on scikit-learn.
+    without taking scikit-learn as a dependency.
 
     Example:
         >>> import numpy as np
@@ -71,22 +100,18 @@ class SOM:
     """
 
     def __init__(
-        self,
-        width: int,
-        height: int,
-        *,
-        config: TrainingConfig | None = None,
+        self, width: int, height: int, *, config: TrainingConfig | None = None
     ) -> None:
         if width <= 0 or height <= 0:
             raise ValueError(f"width and height must be positive, got {width}x{height}")
         self.width = width
         self.height = height
-        self.config = config if config is not None else TrainingConfig()
+        self.config = config or TrainingConfig()
         self._weights: NDArray[np.float64] | None = None
 
     @property
     def weights_(self) -> NDArray[np.float64]:
-        """The learned node weights, shaped ``(width, height, n_features)``."""
+        """Learned node weights, shaped ``(width, height, n_features)``."""
         if self._weights is None:
             raise AttributeError(
                 "SOM is not fitted; call fit() before accessing weights_"
@@ -95,69 +120,71 @@ class SOM:
 
     @property
     def n_nodes(self) -> int:
-        """Total node count, ``width * height``."""
         return self.width * self.height
 
-    def fit(
-        self,
-        data: NDArray[np.floating],
-        *,
-        on_iteration: IterationCallback | None = None,
-    ) -> SOM:
-        """Train the map.
-
-        Args:
-            data: Training vectors, shaped ``(n_samples, n_features)``.
-            on_iteration: Optional observer called once per iteration. When
-                ``None`` (the default) there is no overhead.
-
-        Returns:
-            ``self``, for chaining.
-        """
-        array = _validate_data(data)
-        n_features = array.shape[1]
+    def fit(self, data: NDArray[np.floating]) -> SOM:
+        """Train the map. Returns ``self``, for chaining."""
+        array = _validate(data)
         cfg = self.config
-
-        weights = initialise_weights(self.width, self.height, n_features, cfg.seed)
+        weights = initialise_weights(self.width, self.height, array.shape[1], cfg.seed)
 
         if cfg.n_iterations > 0:
             sigma_0 = cfg.resolved_radius(self.width, self.height)
-            tau = time_constant(cfg.n_iterations, sigma_0)
-            sigma_at = ExponentialDecay(clamped_radius(sigma_0), tau)
-            alpha_at = ExponentialDecay(cfg.initial_learning_rate, tau)
-            grid_x, grid_y = coordinate_grid(self.width, self.height)
-            grid_shape = (self.width, self.height)
+            if sigma_0 <= MIN_RADIUS:
+                warnings.warn(
+                    f"initial radius {sigma_0} is too small for a stable time "
+                    f"constant (grid is 2x2 or smaller); clamping to "
+                    f"{MIN_RADIUS}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                sigma_0 = MIN_RADIUS
+            tau = cfg.n_iterations / math.log(sigma_0)
+
+            # Built once, reused for every sample. Walking this with nested
+            # Python loops is what made the original implementation slow.
+            grid_x, grid_y = np.meshgrid(
+                np.arange(self.width), np.arange(self.height), indexing="ij"
+            )
+            shape = (self.width, self.height)
 
             for t in range(cfg.n_iterations):
-                sigma_t = sigma_at(t)
-                alpha_t = alpha_at(t)
+                sigma_t = sigma_0 * math.exp(-t / tau)
+                alpha_t = cfg.initial_learning_rate * math.exp(-t / tau)
+                two_sigma_sq = 2.0 * sigma_t * sigma_t
+
                 for sample in array:
                     diff = weights - sample
-                    flat_bmu = int(np.argmin(np.einsum("ijk,ijk->ij", diff, diff)))
-                    bmu_x, bmu_y = np.unravel_index(flat_bmu, grid_shape)
-                    d2 = squared_distance_to(grid_x, grid_y, int(bmu_x), int(bmu_y))
-                    theta = gaussian_influence(d2, sigma_t)
+                    # No square root: it does not change an argmin.
+                    bmu = int(np.argmin(np.einsum("ijk,ijk->ij", diff, diff)))
+                    bmu_x, bmu_y = np.unravel_index(bmu, shape)
+                    d2 = (grid_x - bmu_x) ** 2 + (grid_y - bmu_y) ** 2
+                    theta = np.exp(-d2 / two_sigma_sq)
+                    # w += alpha * theta * (v - w), with diff = w - v
                     weights -= (alpha_t * theta)[..., None] * diff
-                if on_iteration is not None:
-                    on_iteration(t, weights, sigma_t, alpha_t)
 
         self._weights = weights
         return self
 
     def transform(self, data: NDArray[np.floating]) -> NDArray[np.float64]:
-        """Return Euclidean distances from each sample to every node.
+        """Euclidean distance from each sample to every node.
 
-        Returns:
-            Array shaped ``(n_samples, width * height)``.
+        Returns an array shaped ``(n_samples, width * height)``.
         """
-        array = self._validate_for_inference(data)
+        array = _validate(data)
+        expected = self.weights_.shape[2]
+        if array.shape[1] != expected:
+            raise ValueError(
+                f"data has {array.shape[1]} features but the map was fitted "
+                f"on {expected} features"
+            )
         flat = self.weights_.reshape(self.n_nodes, -1)
         diff = array[:, None, :] - flat[None, :, :]
         distances: NDArray[np.float64] = np.sqrt(np.einsum("ijk,ijk->ij", diff, diff))
         return distances
 
     def predict(self, data: NDArray[np.floating]) -> NDArray[np.intp]:
-        """Return the flat index of each sample's best matching unit.
+        """Flat index of each sample's best matching unit.
 
         Recover grid coordinates with
         ``np.unravel_index(result, (som.width, som.height))``.
@@ -167,15 +194,3 @@ class SOM:
     def quantisation_error(self, data: NDArray[np.floating]) -> float:
         """Mean distance from each sample to its best matching unit."""
         return float(self.transform(data).min(axis=1).mean())
-
-    def _validate_for_inference(
-        self, data: NDArray[np.floating]
-    ) -> NDArray[np.float64]:
-        array = _validate_data(data)
-        expected = self.weights_.shape[2]
-        if array.shape[1] != expected:
-            raise ValueError(
-                f"data has {array.shape[1]} features but the map was fitted "
-                f"on {expected} features"
-            )
-        return array
