@@ -10,6 +10,7 @@ into the HTML.
 
 from __future__ import annotations
 
+import base64
 import json
 import subprocess
 from pathlib import Path
@@ -17,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "site" / "template.html"
 OUTPUT = ROOT / "site" / "index.html"
+IMAGE = ROOT / "site" / "image.png"
 COMPARISON = ROOT / "benchmarks" / "results" / "comparison.json"
 SNAPSHOTS = ROOT / "benchmarks" / "results" / "snapshots.json"
 
@@ -62,6 +64,14 @@ def main() -> None:
     for path in (COMPARISON, SNAPSHOTS):
         if not path.exists():
             raise SystemExit(f"Missing {path}. Run the benchmark scripts first.")
+    if not IMAGE.exists():
+        raise SystemExit(f"Missing {IMAGE}.")
+
+    # The page's CSP blocks every external request, so the figure is inlined as
+    # a data URI rather than referenced.
+    image_uri = "data:image/png;base64," + base64.b64encode(
+        IMAGE.read_bytes()
+    ).decode("ascii")
 
     tests, coverage = _test_stats()
     meta = {
@@ -77,6 +87,7 @@ def main() -> None:
         ("__COMPARISON_JSON__", COMPARISON.read_text(encoding="utf-8")),
         ("__SNAPSHOTS_JSON__", SNAPSHOTS.read_text(encoding="utf-8")),
         ("__META_JSON__", json.dumps(meta)),
+        ("__IMAGE_URI__", image_uri),
     ):
         if token not in html:
             raise SystemExit(f"Template is missing the {token} placeholder.")

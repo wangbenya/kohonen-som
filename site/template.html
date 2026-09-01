@@ -102,6 +102,12 @@ pre.good { border-left-color:var(--indigo); }
 .two-up { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:1.4em 0; }
 @media (max-width:760px){ .two-up{ grid-template-columns:1fr; } }
 
+.fig { margin:1.6em 0; }
+.fig img { width:100%; height:auto; display:block; border-radius:6px; border:1px solid var(--rule); background:#fff; }
+.fig figcaption { font-size:.8rem; color:var(--muted); margin-top:9px; line-height:1.5; max-width:var(--measure); }
+.fig figcaption b { color:var(--ink-soft); font-weight:600; }
+.credit { font-size:.72rem; color:var(--muted); margin-top:6px; }
+
 .cards {
   display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
   gap:1px; background:var(--rule); border:1px solid var(--rule);
@@ -198,9 +204,8 @@ footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44
 
 <div class="hero prose">
   <h1>A map that organises itself</h1>
-  <p class="lede">A review of a Self-Organising Map implementation — what the algorithm
-    does, where its specification contradicts itself, what the rewrite measured, and how
-    to use the result in another project.</p>
+  <p class="lede">What the algorithm does, where its specification contradicts itself,
+    what the rewrite measured, and how to reuse the result.</p>
 </div>
 
 <!-- ========================= 1 ========================= -->
@@ -212,74 +217,74 @@ footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44
     <p>Give it a pile of things it has never seen, with no instructions about what they
       are. It arranges them on a grid so that similar things end up near each other.
       Nobody defines &ldquo;similar&rdquo; — it works that out from the data.</p>
-    <p>The demo in section 3 uses colours, because colours really are just three numbers:
-      how much red, green and blue. But the same method works on data with
-      <em>hundreds</em> of dimensions, where no picture is possible and intuition runs
-      out. It presses that data onto a two-dimensional map a person can actually look
-      at.</p>
   </div>
+
+  <figure class="fig">
+    <img src="__IMAGE_URI__" alt="A grid of connected nodes is repeatedly pulled toward a
+      blue data distribution until it stretches across and covers its shape.">
+    <figcaption>The grid starts arbitrary. Each step, one data point (white) pulls its
+      closest node — and that node&rsquo;s neighbours, inside the shaded
+      neighbourhood — toward itself. <b>Because neighbours move together, the grid
+      stretches rather than tears</b>, and ends up draped over the shape of the data.
+      That is the whole algorithm.
+      <div class="credit">Figure: Wikimedia Commons, CC BY-SA.</div></figcaption>
+  </figure>
+
 
   <h3>Where it earns its keep</h3>
   <div class="cards">
     <div class="card"><div class="card-t">Customer segmentation</div>
-      <div class="card-d">Group customers by behaviour without deciding the categories
-        first — the segments emerge from the data.</div></div>
+      <div class="card-d">Segments emerge from behaviour instead of being defined
+        upfront.</div></div>
     <div class="card"><div class="card-t">Fraud and anomaly detection</div>
-      <div class="card-d">Anything landing far from every part of the map is, by
-        construction, unlike what came before.</div></div>
+      <div class="card-d">Anything landing far from the whole map is unlike what came
+        before.</div></div>
     <div class="card"><div class="card-t">Document clustering</div>
-      <div class="card-d">Organise a large body of text by topic with no predefined
+      <div class="card-d">Organise a corpus by topic with no predefined
         taxonomy.</div></div>
     <div class="card"><div class="card-t">Equipment health</div>
-      <div class="card-d">Sensor readings drifting to a new region indicate a machine
-        behaving unlike its own history.</div></div>
+      <div class="card-d">Sensors drifting to a new region signal a machine unlike its own
+        history.</div></div>
   </div>
 
   <div class="prose">
     <h4>And where it is the wrong tool</h4>
     <ul>
-      <li><strong>When you already know the question.</strong> With labels and a specific
-        target, a supervised model beats this comfortably.</li>
-      <li><strong>When you need a crisp number of groups.</strong> A SOM gives a smooth
-        landscape, not tidy clusters. Drawing boundaries is a separate judgement.</li>
-      <li><strong>When a regulator needs the reasoning.</strong> &ldquo;It landed in this
-        region&rdquo; is weaker than an explicit decision rule.</li>
+      <li>With labels and a specific target, a supervised model wins comfortably.</li>
+      <li>It gives a smooth landscape, not tidy clusters — drawing boundaries is a
+        separate judgement.</li>
+      <li>&ldquo;It landed in this region&rdquo; is a weak account for a regulator.</li>
     </ul>
   </div>
 
   <h3>Three ideas behind the code</h3>
 
   <div class="idea">
-    <div class="idea-t">Don&rsquo;t reinvent the wheel — but know which wheel you need</div>
-    <p>NumPy does the arithmetic. The API borrows scikit-learn&rsquo;s conventions —
-      <code>fit</code>, <code>predict</code>, <code>weights_</code> — so anyone on a data
-      team reads it instantly. MiniSom is the benchmark rather than the competition.</p>
-    <p>A SOM was written from scratch here for one reason: <strong>the brief is
-      prescriptive.</strong> It specifies exponential decay, a particular time constant,
-      a particular influence function. MiniSom implements a different decay, so it
-      cannot answer this brief. When the spec is loose, take the library. When the spec
-      is the point, implement the spec — and benchmark against the library anyway.</p>
+    <div class="idea-t">Don&rsquo;t reinvent the wheel — but know which wheel</div>
+    <p>NumPy does the arithmetic; the API borrows scikit-learn&rsquo;s conventions;
+      MiniSom is the benchmark. A SOM was still written from scratch for one reason:
+      <strong>this brief is prescriptive.</strong> It specifies a particular decay, which
+      MiniSom does not implement — so MiniSom cannot answer it. When the spec is loose,
+      take the library; when the spec <em>is</em> the point, implement it and benchmark
+      against the library anyway.</p>
   </div>
 
   <div class="idea teal">
     <div class="idea-t">Writing code is cheap now. Maintaining it is not.</div>
-    <p>An AI assistant will produce a working SOM in seconds. That has moved where the
-      value sits — not in producing the first draft, but in the judgement the draft
-      cannot supply: what to keep, what to delete, and what to prove.</p>
-    <p>The measure of this repository is not that it is fast. It is that the speed-up is
-      <strong>provable</strong>, the assumptions are <strong>written down</strong>, and
-      the parts that were tempting but unjustified were <strong>left out</strong>.</p>
+    <p>An assistant produces a working SOM in seconds, which moves the value to what it
+      cannot supply: what to keep, what to delete, what to prove. The measure here is not
+      that the code is fast — it is that the speed-up is <strong>provable</strong>, the
+      assumptions are <strong>written down</strong>, and the tempting-but-unjustified
+      parts were <strong>left out</strong>.</p>
   </div>
 
   <div class="idea amber">
     <div class="idea-t">Someone else will maintain this</div>
-    <p>A support team, a client&rsquo;s engineers, or you in six months with no memory of
-      the reasoning. Every choice here optimises for their reading rather than the
-      original writing.</p>
-    <p>That is why the original implementation is <em>kept</em> rather than deleted, why
-      decisions that look odd carry the reason beside them, and why the two places the
-      specification is ambiguous are documented instead of quietly resolved. Code that
-      cannot be safely changed by someone else is not finished.</p>
+    <p>A support team, a client&rsquo;s engineers, or you in six months. That is why the
+      original is kept rather than deleted, why odd-looking decisions carry their reason
+      beside them, and why the spec&rsquo;s ambiguities are documented instead of quietly
+      resolved. <strong>Code that cannot be safely changed by someone else is not
+      finished.</strong></p>
   </div>
 </section>
 
@@ -291,10 +296,10 @@ footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44
   <h2>The brief, the code, and where they disagree</h2>
 
   <div class="prose">
-    <p>The notebook holds two things: a <strong>specification</strong> written in prose
-      and formulas, and <strong>an implementation</strong> of it. Reviewing the code
-      alone would miss the more interesting finding — <em>the specification contradicts
-      itself</em>, and the code silently picks a side.</p>
+    <p>The notebook holds two things: a <strong>specification</strong>, and an
+      implementation of it. Reviewing the code alone would miss the more interesting
+      finding — <em>the specification contradicts itself</em>, and the code silently
+      picks a side.</p>
   </div>
 
   <h3>The contradiction</h3>
@@ -326,9 +331,9 @@ update(node, by=theta)
   </div>
 
   <div class="prose">
-    <p><strong>The code follows the formula</strong> — and that is the more standard
-      Kohonen formulation. Sigma is not a wall; it is the width of a glow. Look at how
-      little the distant nodes actually move, with sigma&nbsp;=&nbsp;5:</p>
+    <p><strong>The code follows the formula</strong> — the more standard Kohonen
+      formulation. Sigma is not a wall; it is the width of a glow. With
+      sigma&nbsp;=&nbsp;5, distant nodes barely move:</p>
   </div>
 
   <div class="scroll-x">
@@ -345,17 +350,13 @@ update(node, by=theta)
   </div>
 
   <div class="prose">
-    <p>When people <em>do</em> add a cutoff, they are not correcting the mathematics.
-      They are saying <em>&ldquo;those nodes barely move, skip them and save the
-      compute.&rdquo;</em> <strong>The cutoff is an optimisation; the smooth version is
-      the definition.</strong></p>
-    <p>The same pattern applies to <code>t</code>. The brief says
-      &ldquo;enumerate through the training data for some number of iterations&rdquo; and
-      sets <code>n_max_iterations = 100</code>. The code treats <code>t</code> as a pass
-      over the data, which fits that wording better than a per-sample reading would.</p>
-    <p><strong>So neither is a bug.</strong> The real criticism is narrower and fairer:
-      the code never records which reading it took, so a maintainer cannot tell whether
-      the ambiguity was noticed or missed.</p>
+    <p>Adding a cutoff does not correct the mathematics — it says <em>&ldquo;those nodes
+      barely move, skip them and save the compute.&rdquo;</em> <strong>The cutoff is an
+      optimisation; the smooth version is the definition.</strong></p>
+    <p><code>t</code> is the same story: the brief&rsquo;s wording fits the
+      pass-over-the-data reading the code took. <strong>So neither is a bug.</strong> The
+      fair criticism is narrower — the code never records which reading it took, so a
+      maintainer cannot tell whether the ambiguity was noticed or missed.</p>
   </div>
 
   <h3>What is genuinely wrong</h3>
@@ -373,11 +374,11 @@ update(node, by=theta)
       <li><strong>No seed.</strong> Global random state, so no run is reproducible and no
         result can be audited or compared.</li>
     </ol>
-    <p>Beyond those: no tests, no type hints, no docstrings, no input validation. One
-      function does initialisation, scheduling and training, and the entry point also
-      generates data and writes PNGs — so the algorithm cannot be exercised without doing
-      file I/O. The Greek identifiers (<code>&sigma;0</code>, <code>&alpha;t</code>) are
-      unsearchable and break on non-UTF-8 toolchains.</p>
+    <p>Beyond those: no tests, type hints, docstrings or validation. One function does
+      initialisation, scheduling and training, and the entry point also generates data and
+      writes PNGs — so the algorithm cannot be run without file I/O. The Greek identifiers
+      (<code>&sigma;0</code>, <code>&alpha;t</code>) are unsearchable and break on
+      non-UTF-8 toolchains.</p>
   </div>
 
   <h3>Answering the challenge</h3>
@@ -386,26 +387,26 @@ update(node, by=theta)
     <div class="q">Could the code be made more efficient?</div>
     <div class="prose">
       <p>Yes — <strong>substantially, and provably without changing the result.</strong>
-        There are four nested loops, but only the inner two can go. Those walk the grid
-        per sample and are pure interpreter overhead. The outer two — over iterations and
-        over samples — are inherent to online SOM; vectorising across samples would
-        silently convert this into batch SOM, which converges differently.</p>
+        There are four nested loops, but only the inner two can go: they walk the grid per
+        sample and are pure interpreter overhead. The outer two are inherent to online SOM
+        — vectorising across samples would silently turn this into batch SOM, which
+        converges differently.</p>
       <p>Removing the inner two gives <strong id="qa-speed">a large speed-up that grows
-        with grid size</strong>, with a maximum deviation from the original of
-        <code>2.220e-16</code> — one float64 epsilon. See section 3.</p>
+        with grid size</strong>, deviating from the original by <code>2.220e-16</code> —
+        one float64 epsilon.</p>
     </div>
   </div>
 
   <div class="qa">
     <div class="q">Is it structured for other developers and for productionisation?</div>
     <div class="prose">
-      <p>Not yet. It is a single function returning a bare array, with <strong>no
-        inference path at all</strong> — a consumer wanting to map a new vector onto the
-        trained grid has to reimplement the best-matching-unit search themselves.</p>
-      <p>The rewrite splits training from inference behind a typed class with
-        <code>fit</code>, <code>predict</code> and <code>transform</code>, moves
-        hyperparameters into a validated frozen config, and removes plotting and dataset
-        generation from the algorithm entirely.</p>
+      <p>Not yet. It is one function returning a bare array, with <strong>no inference
+        path at all</strong> — anyone wanting to map a new vector onto the trained grid
+        must reimplement the best-matching-unit search themselves.</p>
+      <p>The rewrite splits training from inference behind a typed class
+        (<code>fit</code>, <code>predict</code>, <code>transform</code>), moves
+        hyperparameters into a validated frozen config, and takes plotting and dataset
+        generation out of the algorithm entirely.</p>
     </div>
   </div>
 
@@ -413,21 +414,20 @@ update(node, by=theta)
     <div class="q">How would you approach productionising this?</div>
     <div class="prose">
       <p>By first rejecting the question&rsquo;s implied shape. A SOM is <strong>a batch
-        training job that emits an artefact</strong>, not a request-response service. The
-        reflex to containerise it and put an API in front answers a workload this is
-        not.</p>
+        training job that emits an artefact</strong>, not a service. The reflex to
+        containerise it and put an API in front answers a workload this is not.</p>
       <ul>
-        <li><strong>Training</strong> — a parameterised batch job. The config is frozen
-          and hashable so a run&rsquo;s parameters log as MLflow params in one call; the
-          weights register as an artefact tagged with the data version and commit.</li>
-        <li><strong>Inference</strong> — best-matching-unit lookup against an array
-          usually well under a megabyte. Batch-score it, or embed the library. A REST
-          endpoint would add a network hop and an availability commitment to something
-          the caller can do locally in microseconds.</li>
+        <li><strong>Training</strong> — a parameterised batch job. The frozen config
+          logs as MLflow params in one call; the weights register as an artefact tagged
+          with the data version and commit.</li>
+        <li><strong>Inference</strong> — BMU lookup against an array usually well under a
+          megabyte. Batch-score it, or embed the library. A REST endpoint would add a
+          network hop and an availability commitment to something the caller can do
+          locally in microseconds.</li>
         <li><strong>Monitoring</strong> — no labels, so no accuracy metric. Track
-          quantisation error and topographic error across retrains and alert on
-          <em>trend</em>, not an absolute threshold.</li>
-        <li><strong>Scaling</strong> — below roughly 1000&times;1000 nodes, NumPy is
+          quantisation and topographic error across retrains; alert on <em>trend</em>, not
+          a threshold.</li>
+        <li><strong>Scaling</strong> — below roughly 1000&times;1000 nodes NumPy is
           enough. Above it, measure before reaching for a GPU.</li>
       </ul>
     </div>
@@ -436,14 +436,13 @@ update(node, by=theta)
   <div class="qa">
     <div class="q">Anything else relevant?</div>
     <div class="prose">
-      <p><strong>There is no way to verify any change to this code.</strong> No tests
-        means a refactor of a numerical routine is guesswork — you cannot tell a
-        speed-up from a subtle behavioural change.</p>
-      <p>The approach taken here: <strong>keep the original implementation as an
-        executable oracle.</strong> It stays in the package as
-        <code>_reference.py</code>, and CI asserts the fast version matches it to
-        <code>1e-12</code>. Most rewrites delete the code they replace. Keeping it is
-        what converts &ldquo;it looks right&rdquo; into a claim that holds up.</p>
+      <p><strong>There is no way to verify any change to this code.</strong> Without
+        tests, refactoring a numerical routine is guesswork — you cannot tell a speed-up
+        from a subtle behavioural change.</p>
+      <p>So the original is <strong>kept as an executable oracle</strong>:
+        <code>_reference.py</code> stays in the package and CI asserts the fast version
+        matches it to <code>1e-12</code>. Most rewrites delete the code they replace.
+        Keeping it converts &ldquo;it looks right&rdquo; into a claim that holds up.</p>
     </div>
   </div>
 </section>
@@ -469,10 +468,10 @@ update(node, by=theta)
   <div class="idea">
     <div class="idea-t">This chart is the whole argument</div>
     <p>The original&rsquo;s bar barely moves across a hundredfold change in grid size —
-      its cost per node is <em>constant</em>, because that cost is the Python interpreter
-      rather than the arithmetic. The rewritten bar <em>falls</em> as the grid grows,
-      because NumPy spreads its fixed overhead across more elements.</p>
-    <p>That is why the speed-up is not one number. It scales with the problem.</p>
+      its cost per node is <em>constant</em>, because that cost is the interpreter, not
+      the arithmetic. The rewritten bar <em>falls</em> as the grid grows, as NumPy spreads
+      fixed overhead across more elements. That is why the speed-up is not one number: it
+      scales with the problem.</p>
   </div>
 
   <div class="scroll-x">
@@ -485,18 +484,18 @@ update(node, by=theta)
 
   <div class="idea amber">
     <div class="idea-t">The caveat matters more than the win</div>
-    <p>MiniSom is <em>not</em> running the same algorithm — it uses asymptotic decay
-      rather than the exponential decay this brief specifies, so raw wall-clock is not
-      like-for-like. The benchmark normalises on <strong>weight updates performed</strong>
-      and records the difference alongside every MiniSom row in the output.</p>
+    <p>MiniSom is <em>not</em> running the same algorithm — it uses asymptotic rather
+      than exponential decay, so raw wall-clock is not like-for-like. The benchmark
+      normalises on <strong>weight updates performed</strong>.</p>
     <p>Quantisation error says the same from the other direction: identical between the
       original and the rewrite, as the equivalence proof requires — but different for
-      MiniSom. They are solving slightly different problems.</p>
+      MiniSom. They solve slightly different problems.</p>
   </div>
 
   <h3>Watch it train</h3>
   <div class="prose">
-    <p>Twelve colours, a 16&times;16 grid, starting from random noise.</p>
+    <p>Twelve colours on a 16&times;16 grid, from random noise. Same mechanism as the
+      figure in section 1.</p>
   </div>
 
   <div class="demo">
@@ -520,19 +519,6 @@ update(node, by=theta)
     </div>
   </div>
 
-  <div class="prose">
-    <h4>What is happening</h4>
-    <ol>
-      <li><strong>Find the closest match.</strong> For each colour, find the square that
-        already looks most like it.</li>
-      <li><strong>Pull that square closer</strong> — and its neighbours too, less the
-        further away they are.</li>
-      <li><strong>Narrow the reach and slow down.</strong> Each pass, the neighbourhood
-        shrinks and the nudges soften.</li>
-    </ol>
-    <p>Step two is the trick. Because neighbours move <em>together</em>, nearby squares
-      stay similar, and the smooth gradient is the consequence. Nobody specified it.</p>
-  </div>
 </section>
 
 <hr>
@@ -543,8 +529,8 @@ update(node, by=theta)
   <h2>Using it in another project</h2>
 
   <div class="prose">
-    <p>The package has <strong>one runtime dependency: NumPy.</strong> It ships type
-      information, so consumers get completion and type checking without a stub package.</p>
+    <p><strong>One runtime dependency: NumPy.</strong> It ships type information, so
+      consumers get completion and type checking without a stub package.</p>
   </div>
 
   <div class="pre-label">Install</div>
@@ -560,15 +546,13 @@ uv build &amp;&amp; pip install dist/kohonen_som-0.1.0-py3-none-any.whl</pre>
 
   <div class="idea amber">
     <div class="idea-t">Not on PyPI — and <code>pip install kohonen</code> is a trap</div>
-    <p>That name is already taken. <code>kohonen</code> on PyPI is an unrelated
-      vector-quantiser library, last released in <strong>2014</strong>. Running that
-      command does not fail; it quietly installs a different decade-old package. This
-      distribution is therefore named <code>kohonen-som</code>, while the import stays
-      <code>kohonen</code>.</p>
-    <p>Publishing to PyPI would be the wrong move anyway. Inside an organisation the
-      answer is a <strong>private index</strong> — Azure Artifacts, AWS CodeArtifact, or
-      an internal devpi — so versions are pinned and auditable and the supply chain stays
-      inside the tenancy. Public publication is for public libraries.</p>
+    <p>That name is taken: <code>kohonen</code> on PyPI is an unrelated
+      vector-quantiser library last released in <strong>2014</strong>, so the command
+      does not fail — it quietly installs different, decade-old code. This distribution
+      is named <code>kohonen-som</code>; the import stays <code>kohonen</code>.
+      Publishing publicly would be wrong anyway: inside an organisation the answer is a
+      <strong>private index</strong> (Azure Artifacts, CodeArtifact) so versions stay
+      pinned, auditable and inside the tenancy.</p>
   </div>
 
   <div class="pre-label" style="margin-top:22px">Train and use a map</div>
@@ -585,17 +569,17 @@ image  = som.weights_                  # (10, 10, 3) — plottable directly</pre
 
   <div class="prose">
     <h4>Why the API looks familiar</h4>
-    <p>Hyperparameters go in the constructor, learned state carries a trailing underscore,
-      and <code>fit</code> returns <code>self</code>. Those are scikit-learn&rsquo;s
-      conventions, adopted deliberately — <strong>without taking scikit-learn as a
-      dependency.</strong> A small numerical package should not pull in a large
-      transitive tree to borrow an interface.</p>
-    <p>The practical effect: anyone who has used scikit-learn already knows how to drive
-      this, and chaining works the way they expect.</p>
+    <p>Hyperparameters in the constructor, learned state with a trailing underscore,
+      <code>fit</code> returning <code>self</code> — scikit-learn&rsquo;s conventions,
+      adopted deliberately <strong>without taking scikit-learn as a dependency</strong>.
+      A small numerical package should not pull in a large transitive tree to borrow an
+      interface. Anyone who has used scikit-learn already knows how to drive this.</p>
   </div>
 
   <div class="pre-label">Reproducibility is structural, not procedural</div>
-<pre>config = TrainingConfig(n_iterations=100, seed=42)
+<pre>from dataclasses import asdict
+
+config = TrainingConfig(n_iterations=100, seed=42)
 
 mlflow.log_params(asdict(config))   # frozen dataclass — one call
 mlflow.log_artifact("weights.npy")
@@ -604,29 +588,24 @@ mlflow.log_artifact("weights.npy")
 # the identical map is re-derivable.</pre>
 
   <div class="prose">
-    <p>The config is frozen and hashable for exactly this reason. There is no
-      hand-maintained parameter dictionary to drift out of step with the code.</p>
+    <p>The config is frozen and hashable for exactly this reason: no hand-maintained
+      parameter dictionary to drift out of step with the code.</p>
 
     <h4>What a consumer can rely on</h4>
     <ul>
-      <li><strong>Deterministic output</strong> for a given seed — asserted by tests.</li>
-      <li><strong>Any dimensionality</strong>, inferred from the data at
-        <code>fit</code> time.</li>
-      <li><strong>Clear failure</strong> — invalid grids, empty arrays, NaN, inf and
-        dimensionality mismatches all raise on entry with a message naming the problem,
-        rather than producing quiet nonsense.</li>
-      <li><strong>Small grids work</strong>, including the 1&times;1 and 2&times;2 cases
-        that divided by zero before.</li>
+      <li><strong>Deterministic output</strong> for a given seed, asserted by tests.</li>
+      <li><strong>Any dimensionality</strong>, inferred at <code>fit</code> time — and
+        small grids work, including the 1&times;1 and 2&times;2 cases that divided by zero
+        before.</li>
+      <li><strong>Clear failure</strong> — bad grids, empty arrays, NaN, inf and
+        dimensionality mismatches raise on entry with a message naming the problem,
+        instead of producing quiet nonsense.</li>
     </ul>
 
     <h4>What it deliberately does not do</h4>
-    <ul>
-      <li><strong>No GPU backend.</strong> Two seconds at 100&times;100 does not justify
-        it. The threshold where that changes is documented rather than guessed.</li>
-      <li><strong>No REST API, CLI or container.</strong> All straightforward; none was
-        the bottleneck. The effort went into the equivalence proof, which is what makes
-        every other claim here trustworthy.</li>
-    </ul>
+    <p>No GPU backend, REST API, CLI or container. All straightforward; none was the
+      bottleneck. The effort went into the equivalence proof — the thing that makes every
+      other claim here trustworthy.</p>
   </div>
 </section>
 
