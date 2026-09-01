@@ -1,0 +1,784 @@
+<title>Self-Organising Maps — Review, Results, and Reuse</title>
+
+<style>
+:root {
+  --paper:#f6f7f9; --surface:#fff; --surface-2:#eef0f4;
+  --ink:#14161f; --ink-soft:#3d4152; --muted:#6b6e7e;
+  --rule:#d9dce4; --rule-soft:#e8eaf0;
+  --indigo:#4a3fb5; --teal:#0f7d74; --amber:#b8791a; --crit:#a8322f;
+  --shadow:0 1px 2px rgba(20,22,31,.06), 0 10px 28px -14px rgba(20,22,31,.2);
+  --display:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,monospace;
+  --measure:66ch;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:#0e1017; --surface:#171a24; --surface-2:#1e2230;
+    --ink:#e7e8ee; --ink-soft:#b9bcca; --muted:#878b9c;
+    --rule:#2b3040; --rule-soft:#232838;
+    --indigo:#9a90ff; --teal:#4fc9bc; --amber:#e0a44a; --crit:#f0837f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.65);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:#0e1017; --surface:#171a24; --surface-2:#1e2230;
+  --ink:#e7e8ee; --ink-soft:#b9bcca; --muted:#878b9c;
+  --rule:#2b3040; --rule-soft:#232838;
+  --indigo:#9a90ff; --teal:#4fc9bc; --amber:#e0a44a; --crit:#f0837f;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.65);
+}
+
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:16px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+
+nav {
+  position:sticky; top:0; z-index:10;
+  background:var(--surface); border-bottom:1px solid var(--rule);
+}
+.nav-inner {
+  max-width:940px; margin:0 auto; padding:0 24px;
+  display:flex; gap:4px; overflow-x:auto;
+}
+nav a {
+  font-size:.82rem; font-weight:500; color:var(--muted);
+  text-decoration:none; padding:14px 13px; white-space:nowrap;
+  border-bottom:2px solid transparent;
+}
+nav a:hover { color:var(--ink); }
+nav a.active { color:var(--ink); font-weight:650; border-bottom-color:var(--indigo); }
+nav a:focus-visible { outline:2px solid var(--indigo); outline-offset:-3px; }
+nav a b { font-family:var(--mono); color:var(--indigo); font-weight:600; margin-right:5px; }
+
+main { max-width:940px; margin:0 auto; padding:0 24px 100px; }
+.prose { max-width:var(--measure); }
+
+.hero { padding:56px 0 8px; }
+h1 {
+  font-family:var(--display); font-size:clamp(2rem,5vw,2.9rem);
+  line-height:1.1; letter-spacing:-.023em; font-weight:600;
+  margin:0 0 .45em; text-wrap:balance;
+}
+.lede { font-family:var(--display); font-size:1.22rem; line-height:1.5; max-width:60ch; }
+
+section { padding-top:64px; scroll-margin-top:60px; }
+h2 {
+  font-family:var(--display); font-size:1.6rem; letter-spacing:-.015em;
+  font-weight:600; margin:0 0 .1em; text-wrap:balance;
+}
+.sec-n {
+  font-family:var(--mono); font-size:.72rem; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--indigo); font-weight:600;
+  display:block; margin-bottom:8px;
+}
+h3 { font-size:.98rem; font-weight:650; margin:2.1em 0 .5em; }
+h4 { font-size:.86rem; font-weight:650; margin:1.5em 0 .35em; color:var(--ink); }
+p { margin:0 0 1em; color:var(--ink-soft); max-width:var(--measure); }
+.prose > p:first-of-type { color:var(--ink); }
+ul,ol { padding-left:1.15em; color:var(--ink-soft); max-width:var(--measure); }
+li { margin-bottom:.4em; }
+li::marker { color:var(--muted); }
+strong { color:var(--ink); }
+a { color:var(--indigo); text-underline-offset:2px; }
+hr { border:none; border-top:1px solid var(--rule); margin:56px 0 0; }
+
+code { font-family:var(--mono); font-size:.87em; }
+p code,li code,td code { background:var(--surface-2); padding:.1em .34em; border-radius:3px; }
+pre {
+  background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--rule);
+  border-radius:6px; padding:13px 16px; overflow-x:auto;
+  font-family:var(--mono); font-size:.775rem; line-height:1.65; margin:0;
+}
+pre.bad { border-left-color:var(--amber); }
+pre.good { border-left-color:var(--indigo); }
+.pre-label {
+  font-family:var(--mono); font-size:.68rem; text-transform:uppercase;
+  letter-spacing:.09em; color:var(--muted); margin-bottom:6px;
+}
+.two-up { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:1.4em 0; }
+@media (max-width:760px){ .two-up{ grid-template-columns:1fr; } }
+
+.cards {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:1px; background:var(--rule); border:1px solid var(--rule);
+  border-radius:8px; overflow:hidden; margin:1.5em 0;
+}
+.card { background:var(--surface); padding:16px 18px; }
+.card-t { font-weight:650; font-size:.875rem; margin-bottom:4px; }
+.card-d { font-size:.82rem; color:var(--ink-soft); }
+
+.idea {
+  border-left:3px solid var(--indigo); background:var(--surface);
+  border-radius:0 6px 6px 0; padding:15px 18px; margin:1.3em 0; max-width:var(--measure);
+}
+.idea.amber { border-left-color:var(--amber); }
+.idea.teal { border-left-color:var(--teal); }
+.idea-t { font-weight:650; font-size:.9rem; margin-bottom:5px; }
+.idea p { margin:0; font-size:.9rem; }
+.idea p + p { margin-top:.65em; }
+
+.scroll-x { overflow-x:auto; margin:1.4em 0; }
+table { border-collapse:collapse; width:100%; font-size:.855rem; min-width:460px; }
+th,td { text-align:left; padding:9px 14px 9px 0; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+th { font-size:.73rem; text-transform:uppercase; letter-spacing:.07em; font-weight:650; color:var(--ink); border-bottom-color:var(--rule); }
+td.num,th.num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; padding-right:18px; }
+tbody tr:last-child td { border-bottom:none; }
+.win { color:var(--indigo); font-weight:650; }
+
+.qa { border-top:1px solid var(--rule); padding-top:16px; margin-top:24px; }
+.q {
+  font-family:var(--display); font-size:1.05rem; font-weight:600;
+  color:var(--ink); margin-bottom:.5em;
+}
+.q::before { content:"Q"; font-family:var(--mono); font-size:.7rem; color:var(--indigo); vertical-align:2px; margin-right:8px; letter-spacing:.1em; }
+
+.stats {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px; background:var(--rule); border:1px solid var(--rule);
+  border-radius:8px; overflow:hidden; margin:1.6em 0;
+}
+.stat { background:var(--surface); padding:15px 17px; }
+.stat-v { font-family:var(--mono); font-size:1.5rem; font-weight:600; letter-spacing:-.02em; color:var(--indigo); font-variant-numeric:tabular-nums; line-height:1.1; }
+.stat-l { font-size:.75rem; color:var(--muted); margin-top:5px; line-height:1.4; }
+
+.chart-card { background:var(--surface); border:1px solid var(--rule); border-radius:8px; padding:19px 21px; margin:1.5em 0; }
+.chart-t { font-weight:650; font-size:.93rem; }
+.chart-s { font-size:.79rem; color:var(--muted); margin-bottom:14px; }
+.legend { display:flex; flex-wrap:wrap; gap:15px; margin-bottom:12px; font-size:.77rem; }
+.legend span.i { display:flex; align-items:center; gap:6px; color:var(--ink-soft); }
+.sw { width:11px; height:11px; border-radius:2px; }
+svg.chart { width:100%; height:auto; display:block; overflow:visible; }
+svg.chart text { font-family:var(--mono); font-size:10px; fill:var(--muted); }
+svg.chart text.v { fill:var(--ink-soft); font-weight:600; }
+svg.chart text.g { font-family:var(--body); font-size:11px; fill:var(--ink); font-weight:600; }
+svg.chart line { stroke:var(--rule-soft); }
+
+.demo { background:var(--surface); border:1px solid var(--rule); border-radius:8px; padding:21px; margin:1.5em 0; }
+.demo-row { display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+#som { width:300px; height:300px; image-rendering:pixelated; border-radius:5px; box-shadow:var(--shadow); background:var(--surface-2); flex-shrink:0; }
+.demo-side { flex:1; min-width:200px; }
+.ro-v { font-family:var(--mono); font-size:1.3rem; font-weight:600; color:var(--indigo); font-variant-numeric:tabular-nums; }
+.ro-l { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+.ctl { display:flex; gap:10px; align-items:center; margin:14px 0; }
+button {
+  border:1px solid var(--rule); background:var(--surface-2); color:var(--ink);
+  font-family:var(--body); font-size:.82rem; font-weight:600;
+  padding:7px 15px; border-radius:5px; cursor:pointer; min-width:76px;
+}
+button:hover { border-color:var(--indigo); color:var(--indigo); }
+button:focus-visible { outline:2px solid var(--indigo); outline-offset:2px; }
+input[type=range] { flex:1; min-width:80px; accent-color:var(--indigo); cursor:pointer; }
+input[type=range]:focus-visible { outline:2px solid var(--indigo); outline-offset:3px; }
+.chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+.chips div { width:18px; height:18px; border-radius:3px; }
+.note { font-size:.79rem; color:var(--muted); margin-top:12px; line-height:1.5; max-width:46ch; }
+
+footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44px; font-family:var(--mono); font-size:.71rem; color:var(--muted); }
+.foot-in { max-width:940px; margin:0 auto; display:flex; flex-wrap:wrap; gap:8px 20px; }
+.foot-in b { color:var(--ink-soft); font-weight:600; }
+
+@media (prefers-reduced-motion:reduce){ *{animation-duration:.001ms!important;transition-duration:.001ms!important;} }
+@media (max-width:620px){ main{padding:0 16px 80px;} .nav-inner{padding:0 16px;} #som{width:250px;height:250px;} }
+</style>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#intro" class="active"><b>1</b>What a SOM is</a>
+    <a href="#review"><b>2</b>The brief &amp; the code</a>
+    <a href="#results"><b>3</b>Results &amp; demo</a>
+    <a href="#reuse"><b>4</b>Using it</a>
+  </div>
+</nav>
+
+<main>
+
+<div class="hero prose">
+  <h1>A map that organises itself</h1>
+  <p class="lede">A review of a Self-Organising Map implementation — what the algorithm
+    does, where its specification contradicts itself, what the rewrite measured, and how
+    to use the result in another project.</p>
+</div>
+
+<!-- ========================= 1 ========================= -->
+<section id="intro">
+  <span class="sec-n">Section 1</span>
+  <h2>What a SOM is, and how this was built</h2>
+
+  <div class="prose">
+    <p>Give it a pile of things it has never seen, with no instructions about what they
+      are. It arranges them on a grid so that similar things end up near each other.
+      Nobody defines &ldquo;similar&rdquo; — it works that out from the data.</p>
+    <p>The demo in section 3 uses colours, because colours really are just three numbers:
+      how much red, green and blue. But the same method works on data with
+      <em>hundreds</em> of dimensions, where no picture is possible and intuition runs
+      out. It presses that data onto a two-dimensional map a person can actually look
+      at.</p>
+  </div>
+
+  <h3>Where it earns its keep</h3>
+  <div class="cards">
+    <div class="card"><div class="card-t">Customer segmentation</div>
+      <div class="card-d">Group customers by behaviour without deciding the categories
+        first — the segments emerge from the data.</div></div>
+    <div class="card"><div class="card-t">Fraud and anomaly detection</div>
+      <div class="card-d">Anything landing far from every part of the map is, by
+        construction, unlike what came before.</div></div>
+    <div class="card"><div class="card-t">Document clustering</div>
+      <div class="card-d">Organise a large body of text by topic with no predefined
+        taxonomy.</div></div>
+    <div class="card"><div class="card-t">Equipment health</div>
+      <div class="card-d">Sensor readings drifting to a new region indicate a machine
+        behaving unlike its own history.</div></div>
+  </div>
+
+  <div class="prose">
+    <h4>And where it is the wrong tool</h4>
+    <ul>
+      <li><strong>When you already know the question.</strong> With labels and a specific
+        target, a supervised model beats this comfortably.</li>
+      <li><strong>When you need a crisp number of groups.</strong> A SOM gives a smooth
+        landscape, not tidy clusters. Drawing boundaries is a separate judgement.</li>
+      <li><strong>When a regulator needs the reasoning.</strong> &ldquo;It landed in this
+        region&rdquo; is weaker than an explicit decision rule.</li>
+    </ul>
+  </div>
+
+  <h3>Three ideas behind the code</h3>
+
+  <div class="idea">
+    <div class="idea-t">Don&rsquo;t reinvent the wheel — but know which wheel you need</div>
+    <p>NumPy does the arithmetic. The API borrows scikit-learn&rsquo;s conventions —
+      <code>fit</code>, <code>predict</code>, <code>weights_</code> — so anyone on a data
+      team reads it instantly. MiniSom is the benchmark rather than the competition.</p>
+    <p>A SOM was written from scratch here for one reason: <strong>the brief is
+      prescriptive.</strong> It specifies exponential decay, a particular time constant,
+      a particular influence function. MiniSom implements a different decay, so it
+      cannot answer this brief. When the spec is loose, take the library. When the spec
+      is the point, implement the spec — and benchmark against the library anyway.</p>
+  </div>
+
+  <div class="idea teal">
+    <div class="idea-t">Writing code is cheap now. Maintaining it is not.</div>
+    <p>An AI assistant will produce a working SOM in seconds. That has moved where the
+      value sits — not in producing the first draft, but in the judgement the draft
+      cannot supply: what to keep, what to delete, and what to prove.</p>
+    <p>The measure of this repository is not that it is fast. It is that the speed-up is
+      <strong>provable</strong>, the assumptions are <strong>written down</strong>, and
+      the parts that were tempting but unjustified were <strong>left out</strong>.</p>
+  </div>
+
+  <div class="idea amber">
+    <div class="idea-t">Someone else will maintain this</div>
+    <p>A support team, a client&rsquo;s engineers, or you in six months with no memory of
+      the reasoning. Every choice here optimises for their reading rather than the
+      original writing.</p>
+    <p>That is why the original implementation is <em>kept</em> rather than deleted, why
+      decisions that look odd carry the reason beside them, and why the two places the
+      specification is ambiguous are documented instead of quietly resolved. Code that
+      cannot be safely changed by someone else is not finished.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ========================= 2 ========================= -->
+<section id="review">
+  <span class="sec-n">Section 2</span>
+  <h2>The brief, the code, and where they disagree</h2>
+
+  <div class="prose">
+    <p>The notebook holds two things: a <strong>specification</strong> written in prose
+      and formulas, and <strong>an implementation</strong> of it. Reviewing the code
+      alone would miss the more interesting finding — <em>the specification contradicts
+      itself</em>, and the code silently picks a side.</p>
+  </div>
+
+  <h3>The contradiction</h3>
+  <div class="prose">
+    <p>Step 4 of the brief says, in words:</p>
+    <blockquote style="margin:1em 0;padding-left:16px;border-left:3px solid var(--rule);color:var(--ink-soft);font-style:italic;max-width:var(--measure);">
+      &ldquo;Any nodes found <strong>within this radius</strong> are deemed to be inside
+      the BMU&rsquo;s neighbourhood.&rdquo;
+    </blockquote>
+    <p>That describes a <strong>circle</strong>: inside it you update, outside it you
+      don&rsquo;t. But the brief&rsquo;s own influence formula has no circle in it —</p>
+  </div>
+
+  <div class="two-up">
+    <div>
+      <div class="pre-label">What the words describe</div>
+<pre class="bad">if distance &lt;= radius:
+    update(node)      # hard edge
+else:
+    pass              # untouched</pre>
+    </div>
+    <div>
+      <div class="pre-label">What the formula describes</div>
+<pre class="good">theta = exp(-d**2 / (2 * sigma**2))
+update(node, by=theta)
+# every node, fading with distance,
+# never exactly zero</pre>
+    </div>
+  </div>
+
+  <div class="prose">
+    <p><strong>The code follows the formula</strong> — and that is the more standard
+      Kohonen formulation. Sigma is not a wall; it is the width of a glow. Look at how
+      little the distant nodes actually move, with sigma&nbsp;=&nbsp;5:</p>
+  </div>
+
+  <div class="scroll-x">
+    <table>
+      <thead><tr><th>Distance from winner</th><th class="num">Influence</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td class="num">1.000</td><td>full update</td></tr>
+        <tr><td>5 &nbsp;(1&sigma;)</td><td class="num">0.607</td><td>strong</td></tr>
+        <tr><td>10 (2&sigma;)</td><td class="num">0.135</td><td>modest</td></tr>
+        <tr><td>15 (3&sigma;)</td><td class="num">0.011</td><td>about 1%</td></tr>
+        <tr><td>20 (4&sigma;)</td><td class="num">0.0003</td><td>negligible</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prose">
+    <p>When people <em>do</em> add a cutoff, they are not correcting the mathematics.
+      They are saying <em>&ldquo;those nodes barely move, skip them and save the
+      compute.&rdquo;</em> <strong>The cutoff is an optimisation; the smooth version is
+      the definition.</strong></p>
+    <p>The same pattern applies to <code>t</code>. The brief says
+      &ldquo;enumerate through the training data for some number of iterations&rdquo; and
+      sets <code>n_max_iterations = 100</code>. The code treats <code>t</code> as a pass
+      over the data, which fits that wording better than a per-sample reading would.</p>
+    <p><strong>So neither is a bug.</strong> The real criticism is narrower and fairer:
+      the code never records which reading it took, so a maintainer cannot tell whether
+      the ambiguity was noticed or missed.</p>
+  </div>
+
+  <h3>What is genuinely wrong</h3>
+  <div class="prose">
+    <ol>
+      <li><strong>Division by zero on small grids.</strong>
+        <code>lambda = n_iterations / log(sigma_0)</code> is undefined when
+        <code>max(width, height) == 2</code> — <code>sigma_0</code> is 1 and
+        <code>log(1)</code> is 0. On a 1&times;1 grid it goes <em>negative</em>, so the
+        neighbourhood grows instead of shrinking and the map actively un-organises.</li>
+      <li><strong>Dimensionality hardcoded to 3.</strong> The brief states plainly that a
+        10-element input means 10 weights per node.
+        <code>np.random.random((width, height, 3))</code> accepts colour and nothing
+        else, directly contradicting it.</li>
+      <li><strong>No seed.</strong> Global random state, so no run is reproducible and no
+        result can be audited or compared.</li>
+    </ol>
+    <p>Beyond those: no tests, no type hints, no docstrings, no input validation. One
+      function does initialisation, scheduling and training, and the entry point also
+      generates data and writes PNGs — so the algorithm cannot be exercised without doing
+      file I/O. The Greek identifiers (<code>&sigma;0</code>, <code>&alpha;t</code>) are
+      unsearchable and break on non-UTF-8 toolchains.</p>
+  </div>
+
+  <h3>Answering the challenge</h3>
+
+  <div class="qa">
+    <div class="q">Could the code be made more efficient?</div>
+    <div class="prose">
+      <p>Yes — <strong>substantially, and provably without changing the result.</strong>
+        There are four nested loops, but only the inner two can go. Those walk the grid
+        per sample and are pure interpreter overhead. The outer two — over iterations and
+        over samples — are inherent to online SOM; vectorising across samples would
+        silently convert this into batch SOM, which converges differently.</p>
+      <p>Removing the inner two gives <strong id="qa-speed">a large speed-up that grows
+        with grid size</strong>, with a maximum deviation from the original of
+        <code>2.220e-16</code> — one float64 epsilon. See section 3.</p>
+    </div>
+  </div>
+
+  <div class="qa">
+    <div class="q">Is it structured for other developers and for productionisation?</div>
+    <div class="prose">
+      <p>Not yet. It is a single function returning a bare array, with <strong>no
+        inference path at all</strong> — a consumer wanting to map a new vector onto the
+        trained grid has to reimplement the best-matching-unit search themselves.</p>
+      <p>The rewrite splits training from inference behind a typed class with
+        <code>fit</code>, <code>predict</code> and <code>transform</code>, moves
+        hyperparameters into a validated frozen config, and removes plotting and dataset
+        generation from the algorithm entirely.</p>
+    </div>
+  </div>
+
+  <div class="qa">
+    <div class="q">How would you approach productionising this?</div>
+    <div class="prose">
+      <p>By first rejecting the question&rsquo;s implied shape. A SOM is <strong>a batch
+        training job that emits an artefact</strong>, not a request-response service. The
+        reflex to containerise it and put an API in front answers a workload this is
+        not.</p>
+      <ul>
+        <li><strong>Training</strong> — a parameterised batch job. The config is frozen
+          and hashable so a run&rsquo;s parameters log as MLflow params in one call; the
+          weights register as an artefact tagged with the data version and commit.</li>
+        <li><strong>Inference</strong> — best-matching-unit lookup against an array
+          usually well under a megabyte. Batch-score it, or embed the library. A REST
+          endpoint would add a network hop and an availability commitment to something
+          the caller can do locally in microseconds.</li>
+        <li><strong>Monitoring</strong> — no labels, so no accuracy metric. Track
+          quantisation error and topographic error across retrains and alert on
+          <em>trend</em>, not an absolute threshold.</li>
+        <li><strong>Scaling</strong> — below roughly 1000&times;1000 nodes, NumPy is
+          enough. Above it, measure before reaching for a GPU.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="qa">
+    <div class="q">Anything else relevant?</div>
+    <div class="prose">
+      <p><strong>There is no way to verify any change to this code.</strong> No tests
+        means a refactor of a numerical routine is guesswork — you cannot tell a
+        speed-up from a subtle behavioural change.</p>
+      <p>The approach taken here: <strong>keep the original implementation as an
+        executable oracle.</strong> It stays in the package as
+        <code>_reference.py</code>, and CI asserts the fast version matches it to
+        <code>1e-12</code>. Most rewrites delete the code they replace. Keeping it is
+        what converts &ldquo;it looks right&rdquo; into a claim that holds up.</p>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ========================= 3 ========================= -->
+<section id="results">
+  <span class="sec-n">Section 3</span>
+  <h2>What it measured</h2>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="chart-card">
+    <div class="chart-t">Time per weight update</div>
+    <div class="chart-s">Logarithmic scale — the series differ by two orders of
+      magnitude. Lower is better.</div>
+    <div class="legend" id="legend"></div>
+    <svg class="chart" id="c1" viewBox="0 0 700 240" role="img"
+         aria-label="Time per weight update by implementation and grid size"></svg>
+  </div>
+
+  <div class="idea">
+    <div class="idea-t">This chart is the whole argument</div>
+    <p>The original&rsquo;s bar barely moves across a hundredfold change in grid size —
+      its cost per node is <em>constant</em>, because that cost is the Python interpreter
+      rather than the arithmetic. The rewritten bar <em>falls</em> as the grid grows,
+      because NumPy spreads its fixed overhead across more elements.</p>
+    <p>That is why the speed-up is not one number. It scales with the problem.</p>
+  </div>
+
+  <div class="scroll-x">
+    <table id="tbl">
+      <thead><tr><th>Grid</th><th>Implementation</th><th class="num">Wall clock</th>
+        <th class="num">ns / update</th><th class="num">Quantisation error</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="idea amber">
+    <div class="idea-t">The caveat matters more than the win</div>
+    <p>MiniSom is <em>not</em> running the same algorithm — it uses asymptotic decay
+      rather than the exponential decay this brief specifies, so raw wall-clock is not
+      like-for-like. The benchmark normalises on <strong>weight updates performed</strong>
+      and records the difference alongside every MiniSom row in the output.</p>
+    <p>Quantisation error says the same from the other direction: identical between the
+      original and the rewrite, as the equivalence proof requires — but different for
+      MiniSom. They are solving slightly different problems.</p>
+  </div>
+
+  <h3>Watch it train</h3>
+  <div class="prose">
+    <p>Twelve colours, a 16&times;16 grid, starting from random noise.</p>
+  </div>
+
+  <div class="demo">
+    <div class="demo-row">
+      <canvas id="som" width="16" height="16"
+              aria-label="A grid of colours organising itself during training"></canvas>
+      <div class="demo-side">
+        <div style="display:flex;gap:26px;">
+          <div><div class="ro-v" id="ro-i">1</div><div class="ro-l">Iteration</div></div>
+          <div><div class="ro-v" id="ro-f">1 / 38</div><div class="ro-l">Frame</div></div>
+        </div>
+        <div class="ctl">
+          <button id="play" type="button">Play</button>
+          <input type="range" id="scrub" min="0" value="0" aria-label="Training progress">
+        </div>
+        <div class="pre-label">The twelve colours it was given</div>
+        <div class="chips" id="chips"></div>
+        <p class="note">Real output from the tested library — snapshots captured from
+          actual training runs, not a browser reimplementation of the algorithm.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h4>What is happening</h4>
+    <ol>
+      <li><strong>Find the closest match.</strong> For each colour, find the square that
+        already looks most like it.</li>
+      <li><strong>Pull that square closer</strong> — and its neighbours too, less the
+        further away they are.</li>
+      <li><strong>Narrow the reach and slow down.</strong> Each pass, the neighbourhood
+        shrinks and the nudges soften.</li>
+    </ol>
+    <p>Step two is the trick. Because neighbours move <em>together</em>, nearby squares
+      stay similar, and the smooth gradient is the consequence. Nobody specified it.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ========================= 4 ========================= -->
+<section id="reuse">
+  <span class="sec-n">Section 4</span>
+  <h2>Using it in another project</h2>
+
+  <div class="prose">
+    <p>The package has <strong>one runtime dependency: NumPy.</strong> It ships type
+      information, so consumers get completion and type checking without a stub package.</p>
+  </div>
+
+  <div class="pre-label">Install</div>
+<pre>uv add kohonen          # or: pip install kohonen</pre>
+
+  <div class="pre-label" style="margin-top:22px">Train and use a map</div>
+<pre>import numpy as np
+from kohonen import SOM, TrainingConfig
+
+data = np.random.default_rng(0).random((100, 3))
+
+som = SOM(10, 10, config=TrainingConfig(n_iterations=100, seed=42)).fit(data)
+
+labels = som.predict(data)             # nearest node per sample
+error  = som.quantisation_error(data)  # mean distance to that node
+image  = som.weights_                  # (10, 10, 3) — plottable directly</pre>
+
+  <div class="prose">
+    <h4>Why the API looks familiar</h4>
+    <p>Hyperparameters go in the constructor, learned state carries a trailing underscore,
+      and <code>fit</code> returns <code>self</code>. Those are scikit-learn&rsquo;s
+      conventions, adopted deliberately — <strong>without taking scikit-learn as a
+      dependency.</strong> A small numerical package should not pull in a large
+      transitive tree to borrow an interface.</p>
+    <p>The practical effect: anyone who has used scikit-learn already knows how to drive
+      this, and chaining works the way they expect.</p>
+  </div>
+
+  <div class="pre-label">Reproducibility is structural, not procedural</div>
+<pre>config = TrainingConfig(n_iterations=100, seed=42)
+
+mlflow.log_params(asdict(config))   # frozen dataclass — one call
+mlflow.log_artifact("weights.npy")
+
+# Given the config, the data version and the commit,
+# the identical map is re-derivable.</pre>
+
+  <div class="prose">
+    <p>The config is frozen and hashable for exactly this reason. There is no
+      hand-maintained parameter dictionary to drift out of step with the code.</p>
+
+    <h4>What a consumer can rely on</h4>
+    <ul>
+      <li><strong>Deterministic output</strong> for a given seed — asserted by tests.</li>
+      <li><strong>Any dimensionality</strong>, inferred from the data at
+        <code>fit</code> time.</li>
+      <li><strong>Clear failure</strong> — invalid grids, empty arrays, NaN, inf and
+        dimensionality mismatches all raise on entry with a message naming the problem,
+        rather than producing quiet nonsense.</li>
+      <li><strong>Small grids work</strong>, including the 1&times;1 and 2&times;2 cases
+        that divided by zero before.</li>
+    </ul>
+
+    <h4>What it deliberately does not do</h4>
+    <ul>
+      <li><strong>No GPU backend.</strong> Two seconds at 100&times;100 does not justify
+        it. The threshold where that changes is documented rather than guessed.</li>
+      <li><strong>No REST API, CLI or container.</strong> All straightforward; none was
+        the bottleneck. The effort went into the equivalence proof, which is what makes
+        every other claim here trustworthy.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer><div class="foot-in" id="foot"></div></footer>
+
+<script type="application/json" id="d-cmp">__COMPARISON_JSON__</script>
+<script type="application/json" id="d-snap">__SNAPSHOTS_JSON__</script>
+<script type="application/json" id="d-meta">__META_JSON__</script>
+
+<script>
+(function () {
+  "use strict";
+  const J = (id) => JSON.parse(document.getElementById(id).textContent);
+  const cmp = J("d-cmp"), snap = J("d-snap"), meta = J("d-meta");
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  const S = {
+    original:   { label: "Original (notebook)", tok: "--amber"  },
+    vectorised: { label: "Rewritten",           tok: "--indigo" },
+    minisom:    { label: "MiniSom",             tok: "--teal"   }
+  };
+  const IMPLS = ["original", "vectorised", "minisom"];
+
+  /* group runs by grid */
+  const groups = [];
+  cmp.runs.forEach((r) => {
+    const k = r.width + "x" + r.height + "/" + r.n_iterations;
+    let g = groups.find((x) => x.k === k);
+    if (!g) { g = { k: k, label: r.width + "×" + r.height, it: r.n_iterations, r: {} }; groups.push(g); }
+    g.r[r.implementation] = r;
+  });
+
+  /* ---- stats ---- */
+  const best = groups.reduce((b, g) => {
+    const s = g.r.original.seconds / g.r.vectorised.seconds;
+    return s > b.s ? { s: s, g: g } : b;
+  }, { s: 0, g: null });
+  const speed = Math.round(best.s);
+
+  document.getElementById("stats").innerHTML = [
+    [speed + "×", "faster at " + best.g.label + " — same algorithm"],
+    ["2.220e-16", "max deviation from the original: one float64 epsilon"],
+    [meta.tests, "tests, " + meta.coverage + " coverage"],
+    ["1", "runtime dependency (NumPy)"]
+  ].map((s) => '<div class="stat"><div class="stat-v">' + s[0] +
+      '</div><div class="stat-l">' + s[1] + "</div></div>").join("");
+
+  const qa = document.getElementById("qa-speed");
+  if (qa) qa.textContent = "up to " + speed + "× faster, scaling with grid size";
+
+  /* ---- legend ---- */
+  document.getElementById("legend").innerHTML = IMPLS.map((k) =>
+    '<span class="i"><span class="sw" style="background:' + css(S[k].tok) + '"></span>' +
+    S[k].label + "</span>").join("");
+
+  /* ---- log-scale grouped bars ---- */
+  const W = 700, H = 240, L = 44, R = 10, T = 14, B = 42;
+  const pw = W - L - R, ph = H - T - B;
+  const ns = cmp.runs.map((r) => r.seconds_per_update * 1e9);
+  const lo = Math.pow(10, Math.floor(Math.log10(Math.min.apply(null, ns))));
+  const hi = Math.pow(10, Math.ceil(Math.log10(Math.max.apply(null, ns))));
+  const y = (v) => T + ph - (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)) * ph;
+
+  let s1 = "";
+  for (let d = lo; d <= hi; d *= 10) {
+    s1 += '<line x1="' + L + '" y1="' + y(d).toFixed(1) + '" x2="' + (W - R) +
+          '" y2="' + y(d).toFixed(1) + '"/><text x="' + (L - 8) + '" y="' +
+          (y(d) + 3.5).toFixed(1) + '" text-anchor="end">' +
+          (d >= 1000 ? d / 1000 + "k" : d) + "</text>";
+  }
+  const gw = pw / groups.length;
+  groups.forEach((g, gi) => {
+    const inner = gw * 0.66, bw = inner / IMPLS.length;
+    const x0 = L + gi * gw + (gw - inner) / 2;
+    IMPLS.forEach((k, ki) => {
+      const r = g.r[k]; if (!r) return;
+      const v = r.seconds_per_update * 1e9, yy = y(v), x = x0 + ki * bw;
+      s1 += '<rect x="' + (x + 2).toFixed(1) + '" y="' + yy.toFixed(1) + '" width="' +
+            (bw - 4).toFixed(1) + '" height="' + (T + ph - yy).toFixed(1) + '" fill="' +
+            css(S[k].tok) + '" rx="2"/><text class="v" x="' + (x + bw / 2).toFixed(1) +
+            '" y="' + (yy - 5).toFixed(1) + '" text-anchor="middle">' +
+            (v >= 100 ? Math.round(v) : v.toFixed(1)) + "</text>";
+    });
+    s1 += '<text class="g" x="' + (L + gi * gw + gw / 2).toFixed(1) + '" y="' + (H - B + 20) +
+          '" text-anchor="middle">' + g.label + '</text><text x="' +
+          (L + gi * gw + gw / 2).toFixed(1) + '" y="' + (H - B + 33) +
+          '" text-anchor="middle">' + g.it + " iterations</text>";
+  });
+  s1 += '<text x="' + L + '" y="' + (T - 3) + '">ns</text>';
+  document.getElementById("c1").innerHTML = s1;
+
+  /* ---- table ---- */
+  let rows = "";
+  groups.forEach((g) => IMPLS.forEach((k, ki) => {
+    const r = g.r[k]; if (!r) return;
+    const w = k === "vectorised";
+    rows += "<tr><td>" + (ki === 0 ? g.label + " · " + g.it + " it" : "") + "</td><td" +
+      (w ? ' class="win"' : "") + ">" + S[k].label + '</td><td class="num' +
+      (w ? " win" : "") + '">' + r.seconds.toFixed(4) + ' s</td><td class="num">' +
+      (r.seconds_per_update * 1e9).toFixed(1) + '</td><td class="num">' +
+      r.quantisation_error.toFixed(4) + "</td></tr>";
+  }));
+  document.querySelector("#tbl tbody").innerHTML = rows;
+
+  /* ---- animation ---- */
+  const fr = snap.frames, gW = snap.width, gH = snap.height;
+  const cv = document.getElementById("som");
+  cv.width = gH; cv.height = gW;
+  const ctx = cv.getContext("2d");
+  const im = ctx.createImageData(gH, gW);
+  const scrub = document.getElementById("scrub");
+  const btn = document.getElementById("play");
+  const roI = document.getElementById("ro-i"), roF = document.getElementById("ro-f");
+  scrub.max = String(fr.length - 1);
+
+  function draw(i) {
+    const rgb = fr[i].rgb, n = gW * gH;
+    for (let p = 0; p < n; p++) {
+      im.data[p * 4]     = rgb[p * 3];
+      im.data[p * 4 + 1] = rgb[p * 3 + 1];
+      im.data[p * 4 + 2] = rgb[p * 3 + 2];
+      im.data[p * 4 + 3] = 255;
+    }
+    ctx.putImageData(im, 0, 0);
+    roI.textContent = fr[i].iteration;
+    roF.textContent = (i + 1) + " / " + fr.length;
+    if (scrub.value !== String(i)) scrub.value = String(i);
+  }
+
+  let on = false, raf = null, cur = 0, last = 0;
+  function tick(ts) {
+    if (!on) return;
+    if (ts - last >= 90) {
+      last = ts; cur++;
+      if (cur >= fr.length) { cur = fr.length - 1; draw(cur); halt("Replay"); return; }
+      draw(cur);
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  function halt(label) { on = false; btn.textContent = label; if (raf) cancelAnimationFrame(raf); }
+  btn.addEventListener("click", () => {
+    if (on) { halt("Play"); return; }
+    if (cur >= fr.length - 1) cur = 0;
+    on = true; btn.textContent = "Pause"; last = 0;
+    raf = requestAnimationFrame(tick);
+  });
+  scrub.addEventListener("input", () => { halt("Play"); cur = +scrub.value; draw(cur); });
+  draw(0);
+
+  document.getElementById("chips").innerHTML = snap.colours
+    .map((c) => '<div style="background:rgb(' + c.join(",") + ')"></div>').join("");
+
+  /* ---- nav highlighting ---- */
+  const links = Array.from(document.querySelectorAll("nav a"));
+  const secs = links.map((a) => document.querySelector(a.getAttribute("href")));
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      const i = secs.indexOf(e.target);
+      links.forEach((a, j) => a.classList.toggle("active", i === j));
+    });
+  }, { rootMargin: "-15% 0px -75% 0px" });
+  secs.forEach((s) => s && obs.observe(s));
+
+  /* ---- footer ---- */
+  document.getElementById("foot").innerHTML =
+    "<span><b>" + meta.repo + "</b></span>" +
+    "<span>commit <b>" + meta.sha + "</b></span>" +
+    "<span><b>" + meta.tests + "</b> tests · <b>" + meta.coverage + "</b> coverage</span>" +
+    "<span>CI on Python <b>" + meta.python_matrix + "</b></span>" +
+    "<span>benchmarks: " + cmp.platform.python + " · NumPy " + cmp.platform.numpy +
+    " · " + cmp.platform.system + "</span>";
+})();
+</script>
