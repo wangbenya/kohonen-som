@@ -69,9 +69,9 @@ def main() -> None:
 
     # The page's CSP blocks every external request, so the figure is inlined as
     # a data URI rather than referenced.
-    image_uri = "data:image/png;base64," + base64.b64encode(
-        IMAGE.read_bytes()
-    ).decode("ascii")
+    image_uri = "data:image/png;base64," + base64.b64encode(IMAGE.read_bytes()).decode(
+        "ascii"
+    )
 
     tests, coverage = _test_stats()
     meta = {
