@@ -626,10 +626,17 @@ uv add git+https://github.com/wangbenya/kohonen-som.git
 
 # Or clone it to work on
 git clone https://github.com/wangbenya/kohonen-som.git
-cd kohonen-som &amp;&amp; uv sync --extra dev
+cd kohonen-som
+uv sync --extra dev
 
 # Or build a wheel to hand to another team
-uv build &amp;&amp; pip install dist/kohonen_som-0.1.0-py3-none-any.whl</pre>
+uv build
+pip install dist/kohonen_som-0.1.0-py3-none-any.whl</pre>
+
+  <div class="prose">
+    <p>One command per line rather than chained with <code>&amp;&amp;</code>, which is not a
+      statement separator in Windows PowerShell 5.1.</p>
+  </div>
   <div class="pre-label" style="margin-top:22px">Train and use a map</div>
 <pre>import numpy as np
 from kohonen import SOM, TrainingConfig
