@@ -10,7 +10,7 @@
   --display:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
   --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,monospace;
-  --measure:66ch;
+  --measure:72ch;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -41,9 +41,10 @@ nav {
   background:var(--surface); border-bottom:1px solid var(--rule);
 }
 .nav-inner {
-  max-width:940px; margin:0 auto; padding:0 24px;
+  max-width:1000px; margin:0 auto; padding:0 24px;
   display:flex; gap:4px; overflow-x:auto;
 }
+.nav-title { display:none; }
 nav a {
   font-size:.82rem; font-weight:500; color:var(--muted);
   text-decoration:none; padding:14px 13px; white-space:nowrap;
@@ -54,7 +55,7 @@ nav a.active { color:var(--ink); font-weight:650; border-bottom-color:var(--indi
 nav a:focus-visible { outline:2px solid var(--indigo); outline-offset:-3px; }
 nav a b { font-family:var(--mono); color:var(--indigo); font-weight:600; margin-right:5px; }
 
-main { max-width:940px; margin:0 auto; padding:0 24px 100px; }
+main { max-width:1000px; margin:0 auto; padding:0 24px 100px; }
 .prose { max-width:var(--measure); }
 
 .hero { padding:56px 0 8px; }
@@ -184,8 +185,45 @@ input[type=range]:focus-visible { outline:2px solid var(--indigo); outline-offse
 .note { font-size:.79rem; color:var(--muted); margin-top:12px; line-height:1.5; max-width:46ch; }
 
 footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44px; font-family:var(--mono); font-size:.71rem; color:var(--muted); }
-.foot-in { max-width:940px; margin:0 auto; display:flex; flex-wrap:wrap; gap:8px 20px; }
+.foot-in { max-width:1000px; margin:0 auto; display:flex; flex-wrap:wrap; gap:8px 20px; }
 .foot-in b { color:var(--ink-soft); font-weight:600; }
+
+/* ---- wide screens: nav becomes a left rail ---- */
+@media (min-width:1180px) {
+  nav {
+    position:fixed; inset:0 auto 0 0; width:228px;
+    border-bottom:none; border-right:1px solid var(--rule);
+  }
+  .nav-inner {
+    flex-direction:column; align-items:stretch;
+    max-width:none; margin:0; padding:34px 16px; gap:2px; overflow:visible;
+  }
+  .nav-title {
+    display:block; font-family:var(--display); font-size:1rem; font-weight:600;
+    color:var(--ink); line-height:1.25; margin:0 12px 22px; letter-spacing:-.01em;
+  }
+  .nav-title span {
+    display:block; font-family:var(--mono); font-size:.66rem; font-weight:500;
+    text-transform:uppercase; letter-spacing:.11em; color:var(--muted);
+    margin-top:6px;
+  }
+  nav a {
+    border-bottom:none; border-left:2px solid transparent;
+    padding:9px 12px; border-radius:0 5px 5px 0; white-space:normal;
+  }
+  nav a.active { border-left-color:var(--indigo); background:var(--surface-2); }
+  nav a:focus-visible { outline-offset:-2px; }
+  main { margin-left:228px; max-width:1180px; padding:0 56px 110px 56px; }
+  footer { margin-left:228px; padding-left:56px; padding-right:56px; }
+  .foot-in { max-width:1180px; margin:0; }
+  .hero { padding-top:72px; }
+  /* Wide blocks stretch; running prose keeps its measure. */
+  .cards, .stats, .apps, .scroll-x, .chart-card, .demo, .fig, .two-up { max-width:none; }
+}
+@media (min-width:1500px) {
+  main { max-width:1320px; }
+  .foot-in { max-width:1320px; }
+}
 
 @media (prefers-reduced-motion:reduce){ *{animation-duration:.001ms!important;transition-duration:.001ms!important;} }
 @media (max-width:620px){ main{padding:0 16px 80px;} .nav-inner{padding:0 16px;} #som{width:250px;height:250px;} }
@@ -193,6 +231,7 @@ footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44
 
 <nav>
   <div class="nav-inner">
+    <div class="nav-title">Self-Organising Maps<span>review &amp; results</span></div>
     <a href="#intro" class="active"><b>1</b>What a SOM is</a>
     <a href="#review"><b>2</b>The brief &amp; the code</a>
     <a href="#results"><b>3</b>Results &amp; demo</a>

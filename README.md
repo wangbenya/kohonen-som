@@ -3,6 +3,14 @@
 A vectorised, tested implementation of the Kohonen Self-Organising Map.
 
 [![CI](https://github.com/wangbenya/kohonen-som/actions/workflows/ci.yml/badge.svg)](https://github.com/wangbenya/kohonen-som/actions/workflows/ci.yml)
+[![Pages](https://github.com/wangbenya/kohonen-som/actions/workflows/pages.yml/badge.svg)](https://wangbenya.github.io/kohonen-som/)
+
+### 📊 [**Read the walkthrough →**](https://wangbenya.github.io/kohonen-som/)
+
+What a SOM is, where the specification contradicts itself, the measured results with a
+live demo, and how to reuse the package. Built from this repository on every push.
+
+---
 
 **155× faster than the original implementation, and provably the same algorithm** —
 maximum deviation `2.220e-16`, one float64 epsilon.
