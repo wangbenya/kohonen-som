@@ -1,0 +1,55 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow the workflow to publish to Pages, but nothing else.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; queue rather than cancel, so a merge train does not
+# drop the last build.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # Rebuilt rather than served from the committed copy, so the published
+      # page cannot drift from the benchmark JSON it quotes. build.py also
+      # refuses to run when the test suite is red, so a broken build never
+      # publishes a page claiming a passing suite.
+      - name: Build the page from source
+        run: uv run --extra dev python site/build.py
+
+      # No staleness check against the committed copy: build.py stamps the page
+      # with the current commit SHA, so a fresh build always differs from the
+      # one committed at the previous SHA. The deployed page is the freshly
+      # built one, which is what matters.
+
+      - name: Stage the site
+        run: |
+          mkdir -p _site
+          cp site/index.html _site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
