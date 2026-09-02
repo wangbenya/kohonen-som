@@ -577,18 +577,6 @@ cd kohonen-som &amp;&amp; uv sync --extra dev
 
 # Or build a wheel to hand to another team
 uv build &amp;&amp; pip install dist/kohonen_som-0.1.0-py3-none-any.whl</pre>
-
-  <div class="idea amber">
-    <div class="idea-t">Not on PyPI — and <code>pip install kohonen</code> is a trap</div>
-    <p>That name is taken: <code>kohonen</code> on PyPI is an unrelated
-      vector-quantiser library last released in <strong>2014</strong>, so the command
-      does not fail — it quietly installs different, decade-old code. This distribution
-      is named <code>kohonen-som</code>; the import stays <code>kohonen</code>.
-      Publishing publicly would be wrong anyway: inside an organisation the answer is a
-      <strong>private index</strong> (Azure Artifacts, CodeArtifact) so versions stay
-      pinned, auditable and inside the tenancy.</p>
-  </div>
-
   <div class="pre-label" style="margin-top:22px">Train and use a map</div>
 <pre>import numpy as np
 from kohonen import SOM, TrainingConfig
