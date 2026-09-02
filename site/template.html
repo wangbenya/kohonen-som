@@ -316,9 +316,9 @@ footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44
       <canvas id="som" width="16" height="16"
               aria-label="A grid of colours organising itself during training"></canvas>
       <div class="demo-side">
-        <div style="display:flex;gap:26px;">
-          <div><div class="ro-v" id="ro-i">1</div><div class="ro-l">Iteration</div></div>
-          <div><div class="ro-v" id="ro-f">1 / 38</div><div class="ro-l">Frame</div></div>
+        <div>
+          <div class="ro-v"><span id="ro-i">1</span> / <span id="ro-total">120</span></div>
+          <div class="ro-l">Training iteration</div>
         </div>
         <div class="ctl">
           <button id="play" type="button">Play</button>
@@ -795,7 +795,8 @@ mlflow.log_artifact("weights.npy")
   const im = ctx.createImageData(gH, gW);
   const scrub = document.getElementById("scrub");
   const btn = document.getElementById("play");
-  const roI = document.getElementById("ro-i"), roF = document.getElementById("ro-f");
+  const roI = document.getElementById("ro-i");
+  document.getElementById("ro-total").textContent = String(snap.n_iterations);
   scrub.max = String(fr.length - 1);
 
   function draw(i) {
@@ -808,7 +809,6 @@ mlflow.log_artifact("weights.npy")
     }
     ctx.putImageData(im, 0, 0);
     roI.textContent = fr[i].iteration;
-    roF.textContent = (i + 1) + " / " + fr.length;
     if (scrub.value !== String(i)) scrub.value = String(i);
   }
 
