@@ -243,7 +243,7 @@ footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44
     <div class="nav-title">Self-Organising Maps<span>review &amp; results</span></div>
     <a href="#intro" class="active"><b>1</b>What a SOM is</a>
     <a href="#review"><b>2</b>The brief &amp; the code</a>
-    <a href="#results"><b>3</b>Results &amp; demo</a>
+    <a href="#results"><b>3</b>Results</a>
     <a href="#reuse"><b>4</b>Using it</a>
   </div>
 </nav>
@@ -303,6 +303,33 @@ footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44
         separate judgement.</li>
       <li>&ldquo;It landed in this region&rdquo; is a weak account for a regulator.</li>
     </ul>
+  </div>
+
+  <h3>Watch it train</h3>
+  <div class="prose">
+    <p>The same mechanism as the figure above, run for real: twelve colours on a
+      16&times;16 grid, starting from random noise.</p>
+  </div>
+
+  <div class="demo">
+    <div class="demo-row">
+      <canvas id="som" width="16" height="16"
+              aria-label="A grid of colours organising itself during training"></canvas>
+      <div class="demo-side">
+        <div style="display:flex;gap:26px;">
+          <div><div class="ro-v" id="ro-i">1</div><div class="ro-l">Iteration</div></div>
+          <div><div class="ro-v" id="ro-f">1 / 38</div><div class="ro-l">Frame</div></div>
+        </div>
+        <div class="ctl">
+          <button id="play" type="button">Play</button>
+          <input type="range" id="scrub" min="0" value="0" aria-label="Training progress">
+        </div>
+        <div class="pre-label">The twelve colours it was given</div>
+        <div class="chips" id="chips"></div>
+        <p class="note">Real output from the tested library — snapshots captured from
+          actual training runs, not a browser reimplementation of the algorithm.</p>
+      </div>
+    </div>
   </div>
 
   <h3>Two ideas behind the code</h3>
@@ -579,34 +606,6 @@ mlflow.pyfunc.log_model(
       original and the rewrite, as the equivalence proof requires — but different for
       MiniSom. They solve slightly different problems.</p>
   </div>
-
-  <h3>Watch it train</h3>
-  <div class="prose">
-    <p>Twelve colours on a 16&times;16 grid, from random noise. Same mechanism as the
-      figure in section 1.</p>
-  </div>
-
-  <div class="demo">
-    <div class="demo-row">
-      <canvas id="som" width="16" height="16"
-              aria-label="A grid of colours organising itself during training"></canvas>
-      <div class="demo-side">
-        <div style="display:flex;gap:26px;">
-          <div><div class="ro-v" id="ro-i">1</div><div class="ro-l">Iteration</div></div>
-          <div><div class="ro-v" id="ro-f">1 / 38</div><div class="ro-l">Frame</div></div>
-        </div>
-        <div class="ctl">
-          <button id="play" type="button">Play</button>
-          <input type="range" id="scrub" min="0" value="0" aria-label="Training progress">
-        </div>
-        <div class="pre-label">The twelve colours it was given</div>
-        <div class="chips" id="chips"></div>
-        <p class="note">Real output from the tested library — snapshots captured from
-          actual training runs, not a browser reimplementation of the algorithm.</p>
-      </div>
-    </div>
-  </div>
-
 </section>
 
 <hr>
