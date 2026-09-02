@@ -136,6 +136,15 @@ td.num,th.num { text-align:right; font-family:var(--mono); font-variant-numeric:
 tbody tr:last-child td { border-bottom:none; }
 .win { color:var(--indigo); font-weight:650; }
 
+.steps { display:flex; flex-direction:column; gap:1px; background:var(--rule);
+         border:1px solid var(--rule); border-radius:8px; overflow:hidden; margin:1.3em 0; }
+.step { background:var(--surface); padding:14px 18px; display:grid;
+        grid-template-columns:26px 1fr; gap:14px; align-items:start; }
+.step-n { font-family:var(--mono); font-size:1rem; font-weight:600; color:var(--indigo);
+          font-variant-numeric:tabular-nums; line-height:1.45; }
+.step-t { font-weight:650; font-size:.885rem; margin-bottom:2px; }
+.step-d { font-size:.85rem; color:var(--ink-soft); }
+
 .qa { border-top:1px solid var(--rule); padding-top:16px; margin-top:24px; }
 .q {
   font-family:var(--display); font-size:1.05rem; font-weight:600;
@@ -450,20 +459,65 @@ update(node, by=theta)
       <p>By first rejecting the question&rsquo;s implied shape. A SOM is <strong>a batch
         training job that emits an artefact</strong>, not a service. The reflex to
         containerise it and put an API in front answers a workload this is not.</p>
-      <ul>
-        <li><strong>Training</strong> — a parameterised batch job. The frozen config
-          logs as MLflow params in one call; the weights register as an artefact tagged
-          with the data version and commit.</li>
-        <li><strong>Inference</strong> — BMU lookup against an array usually well under a
-          megabyte. Batch-score it, or embed the library. A REST endpoint would add a
-          network hop and an availability commitment to something the caller can do
-          locally in microseconds.</li>
-        <li><strong>Monitoring</strong> — no labels, so no accuracy metric. Track
-          quantisation and topographic error across retrains; alert on <em>trend</em>, not
-          a threshold.</li>
-        <li><strong>Scaling</strong> — below roughly 1000&times;1000 nodes NumPy is
-          enough. Above it, measure before reaching for a GPU.</li>
-      </ul>
+      <p>Concretely, on Databricks — Azure ML is the same shape with different nouns:</p>
+    </div>
+
+    <div class="steps">
+      <div class="step"><div class="step-n">1</div><div>
+        <div class="step-t">A scheduled Workflow trains it</div>
+        <div class="step-d">One task reads the feature table from Delta, runs
+          <code>SOM(...).fit(...)</code>, and logs <code>TrainingConfig</code> as MLflow
+          params — one call, because the config is a frozen dataclass — plus quantisation
+          error as a metric.</div>
+      </div></div>
+      <div class="step"><div class="step-n">2</div><div>
+        <div class="step-t">The trained map goes into Model Registry</div>
+        <div class="step-d">A SOM is not a native MLflow flavour, so it is wrapped in a
+          thin <code>pyfunc</code> model. That buys the normal machinery: a version
+          number, Staging and Production stages, and lineage back to the run and the
+          commit that produced it.</div>
+      </div></div>
+      <div class="step"><div class="step-n">3</div><div>
+        <div class="step-t">A second task scores in batch</div>
+        <div class="step-d">Load <code>models:/kohonen-som/Production</code>, map each
+          row to its best matching unit, write the assignments back to Delta. No endpoint
+          and no always-on compute — a REST service would add a network hop and an
+          availability commitment to something the caller does locally in
+          microseconds.</div>
+      </div></div>
+      <div class="step"><div class="step-n">4</div><div>
+        <div class="step-t">Drift shows up in the metrics</div>
+        <div class="step-d">There are no labels, so there is no accuracy number. Log
+          quantisation and topographic error on every retrain and alert on the
+          <em>trend</em> — the absolute value depends on the data&rsquo;s scale and means
+          little alone.</div>
+      </div></div>
+    </div>
+
+    <div class="prose">
+      <p>The wrapper is the only glue the registry needs:</p>
+    </div>
+
+<pre>class SOMModel(mlflow.pyfunc.PythonModel):
+    def load_context(self, context):
+        self.som = joblib.load(context.artifacts["som"])
+
+    def predict(self, context, model_input):
+        return self.som.predict(model_input.to_numpy())
+
+mlflow.pyfunc.log_model(
+    artifact_path="som",
+    python_model=SOMModel(),
+    artifacts={"som": local_path},
+    registered_model_name="kohonen-som",
+)</pre>
+
+    <div class="prose">
+      <p><strong>Distribution.</strong> The package is installed from a private index —
+        Azure Artifacts or CodeArtifact — not public PyPI, so versions stay pinned,
+        auditable, and inside the tenancy.</p>
+      <p><strong>Scaling.</strong> Below roughly 1000&times;1000 nodes NumPy is enough.
+        Above that, measure before reaching for a GPU.</p>
     </div>
   </div>
 
