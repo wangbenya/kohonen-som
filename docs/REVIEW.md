@@ -151,6 +151,29 @@ a mask on `theta` for the cutoff, and moving the decay inside the sample loop fo
 The work is not the edit. It is building a second oracle so the effect on convergence
 can be shown rather than asserted.
 
+### On recommendation 3
+
+The original exposes one function that returns a bare array, and **no inference path at
+all**. A consumer wanting to map a new vector onto the trained grid has to reimplement
+the best-matching-unit search themselves — which is both wasted work and a chance to
+implement it differently from the trainer.
+
+The `__main__` block compounds it by generating the dataset, training, and writing PNGs
+in the same place, so the algorithm cannot be exercised without doing file I/O. That is
+the reason there are no tests: the code is not shaped to be called.
+
+The rewrite separates the three concerns:
+
+| Concern | Where it lives now |
+|---|---|
+| Hyperparameters | `TrainingConfig` — frozen, validated at construction |
+| The algorithm | `SOM.fit` — no I/O, no plotting, no dataset generation |
+| Inference | `SOM.predict` / `transform` / `quantisation_error` |
+
+Plotting and data generation move out of the package entirely; they belong to the
+caller. The payoff is not tidiness — it is that every piece becomes callable in
+isolation, which is what makes the test suite in recommendation 4 possible at all.
+
 ### On recommendation 4
 
 `src/kohonen/_reference.py` keeps the original implementation, and CI asserts the fast
