@@ -20,11 +20,6 @@ the productionisation design, is in **[docs/REVIEW.md](docs/REVIEW.md)**.
 
 ## Install
 
-Not published to PyPI. The name `kohonen` there belongs to an unrelated
-vector-quantiser library last released in 2014, so `pip install kohonen` does not fail —
-it quietly installs different, decade-old code. This distribution is `kohonen-som`; the
-import stays `kohonen`.
-
 **As a dependency, straight from the repository:**
 
 ```bash
@@ -47,9 +42,6 @@ uv sync --extra dev
 uv build
 pip install dist/kohonen_som-0.1.0-py3-none-any.whl
 ```
-
-Commands are one per line rather than chained with `&&`, which is not a statement
-separator in Windows PowerShell 5.1.
 
 Inside an organisation, publish to a private index — Azure Artifacts, AWS CodeArtifact,
 or an internal devpi — rather than public PyPI, so versions stay pinned, auditable, and
