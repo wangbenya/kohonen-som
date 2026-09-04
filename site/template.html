@@ -386,9 +386,10 @@ footer { border-top:1px solid var(--rule); margin-top:80px; padding:22px 24px 44
         small grids, dimensionality hardcoded to 3, and no seed — so no run is
         reproducible or auditable.</div></div>
     <div class="card"><div class="card-t">Specification</div>
-      <div class="card-d">The brief <strong>contradicts itself twice</strong>, on the
-        neighbourhood radius and on <code>t</code>. The code follows the formulas, which
-        is defensible — but never records that it chose.</div></div>
+      <div class="card-d">The brief <strong>contradicts itself</strong> on the
+        neighbourhood radius: its words describe a hard edge, its formula does not. The
+        code follows the formula, which is defensible — but never records that it
+        chose.</div></div>
     <div class="card"><div class="card-t">Structure</div>
       <div class="card-d">No tests, types or validation. <strong>No inference path at
         all.</strong> Training, dataset generation and PNG writing share one entry point,
@@ -446,10 +447,9 @@ update(node, by=theta)
     <p>Adding a cutoff does not correct the mathematics — it says <em>&ldquo;those nodes
       barely move, skip them and save the compute.&rdquo;</em> <strong>The cutoff is an
       optimisation; the smooth version is the definition.</strong></p>
-    <p><code>t</code> is the same story: the brief&rsquo;s wording fits the
-      pass-over-the-data reading the code took. <strong>So neither is a bug.</strong> The
-      fair criticism is narrower — the code never records which reading it took, so a
-      maintainer cannot tell whether the ambiguity was noticed or missed.</p>
+    <p><strong>So this is not a bug.</strong> The fair criticism is narrower — the code
+      never records which reading it took, so a maintainer cannot tell whether the
+      ambiguity was noticed or missed.</p>
   </div>
 
   <h3>What is genuinely wrong</h3>
